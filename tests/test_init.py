@@ -6,8 +6,11 @@ import logging
 from unittest.mock import AsyncMock
 
 import pytest
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.service import ServiceValidationError
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.hacomposablealarmclock import manager as manager_module
 from custom_components.hacomposablealarmclock.const import DOMAIN, EVENT_ALARM_TRIGGERED
@@ -329,3 +332,68 @@ async def test_alarm_manage_rejects_invalid_action(
         )
 
     assert exc_info.value.translation_key == "invalid_action"
+
+
+async def test_alarm_manage_requires_config_entry_id_for_multi_entry(
+    hass: HomeAssistant,
+) -> None:
+    """Test service requires config_entry_id when multiple entries are loaded."""
+    entry_1 = MockConfigEntry(
+        domain=DOMAIN,
+        title="Alarm Workspace 1",
+        unique_id=f"{DOMAIN}_1",
+        data={CONF_NAME: "Alarm Workspace 1"},
+    )
+    entry_2 = MockConfigEntry(
+        domain=DOMAIN,
+        title="Alarm Workspace 2",
+        unique_id=f"{DOMAIN}_2",
+        data={CONF_NAME: "Alarm Workspace 2"},
+    )
+    entry_1.add_to_hass(hass)
+    entry_2.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry_1.entry_id)
+    assert await hass.config_entries.async_setup(entry_2.entry_id)
+    await hass.async_block_till_done()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {"action": "list"},
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "config_entry_id_required"
+
+
+async def test_repair_issue_created_for_enabled_alarm_without_targets(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test repair issue is created for enabled alarms with no targets."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "config_entry_id": entry.entry_id,
+            "alarm_id": "untargeted",
+            "alarm_name": "Untargeted",
+            "alarm_time": "07:00:00",
+            "enabled": True,
+            "target_entities": [],
+            "target_services": "",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, "alarms_without_targets")
+    assert issue is not None
+    assert issue.is_fixable is True

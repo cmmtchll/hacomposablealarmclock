@@ -59,9 +59,7 @@ rules:
   exception-translations: done
   icon-translations: done
   reconfiguration-flow: done
-  repair-issues:
-    status: exempt
-    comment: No runtime repair flow is needed for current feature scope.
+  repair-issues: done
   stale-devices:
     status: exempt
     comment: Device topology is static in this integration version.

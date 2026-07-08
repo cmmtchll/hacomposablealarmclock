@@ -46,7 +46,9 @@ class ComposableAlarmEntity(Entity):
             identifiers={(DOMAIN, self._alarm_id)},
             manufacturer="Composable Alarm Clock",
             model="Virtual Alarm Clock",
-            name=self.alarm_name,
+            translation_key="alarm_device",
+            translation_placeholders={"name": self.alarm_name},
+            via_device=(DOMAIN, f"{self._entry_id}_workspace"),
             entry_type=None,
         )
 

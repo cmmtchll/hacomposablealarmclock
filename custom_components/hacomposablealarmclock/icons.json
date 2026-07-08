@@ -17,6 +17,11 @@
         "default": "mdi:view-dashboard"
       }
     },
+    "button": {
+      "trigger_now": {
+        "default": "mdi:alarm-bell"
+      }
+    },
     "switch": {
       "enabled": {
         "default": "mdi:alarm"
@@ -27,5 +32,17 @@
         "default": "mdi:clock-outline"
       }
     }
+  },
+  "services": {
+    "alarm_manage": {
+      "service": "mdi:playlist-edit",
+      "sections": {
+        "advanced": "mdi:tune-variant"
+      }
+    },
+    "create_alarm": {"service": "mdi:alarm-plus"},
+    "update_alarm": {"service": "mdi:alarm-snooze"},
+    "delete_alarm": {"service": "mdi:alarm-off"},
+    "trigger_alarm": {"service": "mdi:alarm-bell"}
   }
 }

@@ -11,8 +11,8 @@ from homeassistant.components.sensor import (
     SensorEntity,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ComposableAlarmConfigEntry
@@ -134,7 +134,7 @@ class WorkspaceOverviewSensor(SensorEntity):
             identifiers={(DOMAIN, f"{self._entry_id}_workspace")},
             manufacturer="Composable Alarm Clock",
             model="Alarm Workspace",
-            name="Alarm Workspace",
+            translation_key="workspace_device",
             entry_type=None,
         )
 
@@ -203,7 +203,7 @@ class AlarmStatusSensor(ComposableAlarmEntity, SensorEntity):
 
     _attr_translation_key = "status"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = [AlarmState.DISABLED.value, AlarmState.SCHEDULED.value]
+    _attr_options = (AlarmState.DISABLED.value, AlarmState.SCHEDULED.value)
 
     def __init__(
         self,
@@ -220,7 +220,9 @@ class AlarmStatusSensor(ComposableAlarmEntity, SensorEntity):
         alarm = self._manager.async_get_alarm(self._alarm_id)
         if alarm is None:
             return None
-        return AlarmState.SCHEDULED.value if alarm.enabled else AlarmState.DISABLED.value
+        if alarm.enabled:
+            return AlarmState.SCHEDULED.value
+        return AlarmState.DISABLED.value
 
     @property
     def extra_state_attributes(self) -> dict[str, str | bool | int | list[str] | None]:

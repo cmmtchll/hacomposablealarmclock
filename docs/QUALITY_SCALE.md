@@ -14,10 +14,12 @@ This document maps repository implementation to Home Assistant Quality Scale exp
 - Config flow, unique IDs, and setup validation.
 - Service-layer alarm validation with translated errors for invalid input and missing alarms.
 - Action-based `alarm_manage` service for Devices and Services with dry-run validation.
+- Flow-first options UX for alarm CRUD from the integration page.
 - Runtime data in `ConfigEntry.runtime_data`.
 - Config entry unload/reload behavior.
 - Logging for availability transitions.
 - Diagnostics with secret redaction.
+- Repairs issue and fix flow for enabled alarms without any targets.
 - Entity translation keys and icon translations.
 - Async API dependency with injected websession.
 - Strict type annotations in integration modules.
@@ -26,7 +28,6 @@ This document maps repository implementation to Home Assistant Quality Scale exp
 
 - Discovery and discovery update flow.
 - Brand assets are prepared locally and pending publication in `home-assistant/brands`.
-- Repair flow.
 - Some advanced lifecycle rules not relevant to a single-endpoint MVP.
 
 See the authoritative status file:

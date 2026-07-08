@@ -2,10 +2,16 @@ alarm_manage:
   name: Manage alarm
   description: Manage virtual alarms through one action-based service.
   fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: hacomposablealarmclock
     action:
       required: true
       selector:
         select:
+          translation_key: alarm_manage_action
           options:
             - create
             - update
@@ -31,25 +37,33 @@ alarm_manage:
       required: false
       selector:
         boolean:
-    target_entities:
-      required: false
-      selector:
-        entity:
-          multiple: true
-    target_services:
-      required: false
-      selector:
-        text:
-    dry_run:
-      required: false
-      default: false
-      selector:
-        boolean:
+    advanced:
+      collapsed: true
+      fields:
+        target_entities:
+          required: false
+          selector:
+            entity:
+              multiple: true
+        target_services:
+          required: false
+          selector:
+            text:
+        dry_run:
+          required: false
+          default: false
+          selector:
+            boolean:
 
 create_alarm:
   name: Create alarm
   description: Create or replace a virtual alarm clock.
   fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: hacomposablealarmclock
     alarm_id:
       required: false
       selector:
@@ -81,6 +95,11 @@ update_alarm:
   name: Update alarm
   description: Update an existing virtual alarm clock.
   fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: hacomposablealarmclock
     alarm_id:
       required: true
       selector:
@@ -111,6 +130,11 @@ delete_alarm:
   name: Delete alarm
   description: Delete a virtual alarm clock.
   fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: hacomposablealarmclock
     alarm_id:
       required: true
       selector:
@@ -120,6 +144,11 @@ trigger_alarm:
   name: Trigger alarm now
   description: Trigger a virtual alarm immediately.
   fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: hacomposablealarmclock
     alarm_id:
       required: true
       selector:
