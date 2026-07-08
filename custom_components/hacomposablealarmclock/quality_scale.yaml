@@ -22,6 +22,7 @@ rules:
   test-before-setup: done
   unique-config-entry: done
 
+  # Service actions validate alarm definitions and surface translated errors.
   action-exceptions: done
   config-entry-unloading: done
   docs-configuration-parameters: done

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from homeassistant.core import callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN, SIGNAL_ALARM_CHANGED, SIGNAL_ALARM_REMOVED
 from .manager import AlarmClockManager
@@ -59,6 +59,7 @@ class ComposableAlarmEntity(Entity):
                 return
             if self.platform is None or self.hass.is_stopping:
                 return
+            # Dispatcher callbacks can arrive off-loop; schedule state writes safely.
             self.hass.add_job(self.async_write_ha_state)
 
         @callback

@@ -133,8 +133,17 @@
     "invalid_alarm_id": {
       "message": "The alarm ID is invalid."
     },
+    "invalid_alarm_name": {
+      "message": "The alarm name cannot be empty."
+    },
+    "invalid_alarm_time": {
+      "message": "The alarm time is invalid. Use HH:MM or HH:MM:SS."
+    },
     "alarm_not_found": {
       "message": "Alarm {alarm_id} was not found."
+    },
+    "invalid_target_service": {
+      "message": "Service {service} must use domain.service format."
     },
     "invalid_list_input": {
       "message": "Expected text or list input."

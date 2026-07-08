@@ -68,6 +68,13 @@ When an alarm is due (or manually triggered), the integration:
 
 This lets you fan out to lights, speakers, scripts, scenes, and mobile notification services.
 
+Service inputs are validated before alarms are stored or triggered:
+
+- Alarm IDs and names must be non-empty.
+- Alarm times must be valid daily times in `HH:MM` or `HH:MM:SS` format.
+- Target services must use `domain.service` format.
+- Update, delete, and trigger actions return a translated validation error when the alarm does not exist.
+
 ## Bronze/Silver/Gold/Platinum notes
 
 Home Assistant requires all tier rules below the target tier to be met.
