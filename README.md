@@ -88,11 +88,12 @@ This scaffold includes a practical implementation for many rules and records exe
 
 - `custom_components/hacomposablealarmclock/quality_scale.yaml`
 - `docs/QUALITY_SCALE.md`
+- `branding/README.md`
 
 ## Known limitations in initial scaffold
 
 - Discovery protocols are not yet implemented.
-- Brand images are not yet included.
+- Brand images are included locally but not yet published to `home-assistant/brands`.
 - Repair flows are not implemented for this initial scope.
 
 ## License

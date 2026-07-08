@@ -3,7 +3,7 @@ rules:
   appropriate-polling: done
   brands:
     status: exempt
-    comment: Brand image assets are not included in this initial scaffold.
+    comment: Local brand assets are prepared; publication to home-assistant/brands is pending.
   common-modules: done
   config-flow-test-coverage: done
   config-flow: done

@@ -24,7 +24,7 @@ This document maps repository implementation to Home Assistant Quality Scale exp
 ## Exemptions in current scaffold
 
 - Discovery and discovery update flow.
-- Brand assets.
+- Brand assets are prepared locally and pending publication in `home-assistant/brands`.
 - Repair flow.
 - Some advanced lifecycle rules not relevant to a single-endpoint MVP.
 
