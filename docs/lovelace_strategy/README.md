@@ -29,15 +29,33 @@ This strategy lets users create a Composable Alarm Clock dashboard from Home Ass
 ## What it generates
 
 - Workspace markdown + workspace summary entities.
-- Quick service action buttons:
-  - list
-  - dry-run list
-- Per-alarm control cards (switch/time/button).
-- Per-alarm telemetry cards (sensor entities).
-- A trigger-now button for each alarm device.
+- Quick management buttons:
+   - Open Integrations
+   - Open Devices
+   - List alarms
+   - Add sample alarm
+   - Enable sample
+   - Disable sample
+   - Trigger sample
+   - Delete sample
+- One simple card per alarm device with only:
+   - Enabled/disabled switch
+   - Alarm time entity
+   - Alarm name as the card title
 
 ## Notes
 
 - If no alarm entities exist yet, the dashboard shows an instructional message.
 - The strategy builds from current device/entity registry data each time the dashboard is generated.
 - Guided CRUD remains in integration Options flow.
+
+## Adding your own dashboard modify/add actions
+
+You can customize the generated strategy file and add buttons for your own actions.
+
+Examples in `generate()`:
+- Use a button with `action: "perform-action"` and `perform_action: "hacomposablealarmclock.alarm_manage"`.
+- Set `data.action` to `create`, `update`, `upsert`, `enable`, or `disable`.
+- Use fixed sample values for fast operations from the dashboard.
+
+Tip: if you need fully guided create/update (free-form fields), keep using Integration Options because Lovelace buttons do not prompt for full form input.
