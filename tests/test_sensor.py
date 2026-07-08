@@ -263,7 +263,10 @@ async def test_alarm_changed_dispatch_from_executor_is_thread_safe(
     )
     await hass.async_block_till_done()
 
-    assert "calls async_write_ha_state from a thread other than the event loop" not in caplog.text
+    assert (
+        "calls async_write_ha_state from a thread other than the event loop"
+        not in caplog.text
+    )
     assert "is not the running loop" not in caplog.text
 
 
@@ -302,7 +305,10 @@ async def test_alarm_removed_dispatch_from_executor_is_thread_safe(
     )
     await hass.async_block_till_done()
 
-    assert "calls async_write_ha_state from a thread other than the event loop" not in caplog.text
+    assert (
+        "calls async_write_ha_state from a thread other than the event loop"
+        not in caplog.text
+    )
 
 
 async def test_dispatch_after_unload_does_not_log_thread_or_pending_task_errors(
@@ -349,6 +355,9 @@ async def test_dispatch_after_unload_does_not_log_thread_or_pending_task_errors(
     )
     await hass.async_block_till_done()
 
-    assert "calls async_write_ha_state from a thread other than the event loop" not in caplog.text
+    assert (
+        "calls async_write_ha_state from a thread other than the event loop"
+        not in caplog.text
+    )
     assert "Task was destroyed but it is pending" not in caplog.text
     assert "is not the running loop" not in caplog.text
