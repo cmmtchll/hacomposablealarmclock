@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Composable Alarm Clock icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f7a8c"/>
+      <stop offset="100%" stop-color="#2f5d62"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+
+  <circle cx="128" cy="140" r="70" fill="#ffffff"/>
+  <circle cx="128" cy="140" r="58" fill="#eaf6f8"/>
+
+  <path d="M74 66c0-14 11-25 25-25h10v18h-10c-4 0-7 3-7 7v10H74V66z" fill="#ffffff"/>
+  <path d="M182 66c0-14-11-25-25-25h-10v18h10c4 0 7 3 7 7v10h18V66z" fill="#ffffff"/>
+
+  <path d="M128 140V103" stroke="#2f5d62" stroke-width="10" stroke-linecap="round"/>
+  <path d="M128 140H161" stroke="#1f7a8c" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="128" cy="140" r="8" fill="#2f5d62"/>
+
+  <rect x="79" y="198" width="16" height="24" rx="6" fill="#ffffff"/>
+  <rect x="161" y="198" width="16" height="24" rx="6" fill="#ffffff"/>
+</svg>
