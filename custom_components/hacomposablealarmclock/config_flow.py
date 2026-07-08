@@ -82,7 +82,7 @@ class ComposableAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title = user_input[CONF_NAME].strip() or DEFAULT_ENTRY_TITLE
             await self.async_set_unique_id(DOMAIN)
             self._abort_if_unique_id_mismatch()
-            return self.async_update_reload_and_abort(
+            return self.async_update_and_abort(
                 entry,
                 data_updates={CONF_NAME: title},
                 reason="reconfigure_successful",
@@ -100,15 +100,12 @@ class ComposableAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
         """Get the options flow for this handler."""
-        return ComposableAlarmOptionsFlow(config_entry)
+        del config_entry
+        return ComposableAlarmOptionsFlow()
 
 
 class ComposableAlarmOptionsFlow(config_entries.OptionsFlow):
     """Handle options for Composable Alarm Clock."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Manage integration options."""

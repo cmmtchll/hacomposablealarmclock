@@ -139,7 +139,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEn
 
 async def async_reload_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEntry) -> None:
     """Reload a config entry."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 def _coerce_str_list(value: Any) -> list[str]:
