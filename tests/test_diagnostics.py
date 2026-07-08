@@ -5,7 +5,6 @@ from __future__ import annotations
 from homeassistant.core import HomeAssistant
 
 from custom_components.hacomposablealarmclock.const import DOMAIN
-
 from custom_components.hacomposablealarmclock.diagnostics import (
     async_get_config_entry_diagnostics,
 )

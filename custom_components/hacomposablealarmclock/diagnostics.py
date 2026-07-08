@@ -22,5 +22,8 @@ async def async_get_config_entry_diagnostics(
     return {
         "entry": async_redact_data(dict(entry.data), TO_REDACT),
         "options": dict(entry.options),
-        "alarms": [asdict(alarm) for alarm in entry.runtime_data.manager.async_list_alarms()],
+        "alarms": [
+            asdict(alarm)
+            for alarm in entry.runtime_data.manager.async_list_alarms()
+        ],
     }
