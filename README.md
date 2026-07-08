@@ -18,13 +18,16 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 - Dynamic entities per alarm:
    - `switch` for enabled/disabled
    - `time` for alarm time
+   - `button` for manual trigger-now
    - `sensor` for next due, last triggered, configuration, and status
 - Workspace-level summary entity:
    - `sensor` for workspace overview (alarm count + compact alarm snapshot list)
 - Service actions to create, update, delete, and trigger alarms
 - Unified action-based service in Devices and Services: `hacomposablealarmclock.alarm_manage`
+- Flow-first alarm management from integration options (add/edit/delete/clone/toggle)
 - Event emission when alarms are due: `hacomposablealarmclock_alarm_triggered`
 - Diagnostics output with stored alarm definitions
+- Repairs issue + fix flow when enabled alarms have no targets
 - Tests using `pytest-homeassistant-custom-component`
 
 ## Quick start
@@ -47,12 +50,14 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 3. Start Home Assistant.
 4. Go to Settings -> Devices & services -> Add integration.
 5. Add "Composable Alarm Clock" and complete setup.
+6. Open the integration Options to manage alarms with guided forms.
 
 ## Service actions
 
 - `hacomposablealarmclock.alarm_manage`
    - Unified action-based service for Devices and Services.
    - Actions: `create`, `update`, `upsert`, `delete`, `enable`, `disable`, `trigger_now`, `list`.
+   - Optional `config_entry_id` targets a specific integration entry.
    - Supports `dry_run: true` to validate changes without persisting.
 
 - `hacomposablealarmclock.create_alarm`
@@ -100,7 +105,6 @@ This scaffold includes a practical implementation for many rules and records exe
 
 - Discovery protocols are not yet implemented.
 - Brand images are included locally but not yet published to `home-assistant/brands`.
-- Repair flows are not implemented for this initial scope.
 
 ## License
 

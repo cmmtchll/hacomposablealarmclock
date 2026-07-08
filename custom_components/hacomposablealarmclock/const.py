@@ -17,6 +17,7 @@ ATTR_ALARM_ID = "alarm_id"
 ATTR_ALARM_NAME = "alarm_name"
 ATTR_ALARM_TIME = "alarm_time"
 ATTR_ACTION = "action"
+ATTR_CONFIG_ENTRY_ID = "config_entry_id"
 ATTR_DRY_RUN = "dry_run"
 ATTR_ENABLED = "enabled"
 ATTR_TARGET_ENTITIES = "target_entities"
@@ -31,8 +32,14 @@ SIGNAL_ALARM_CHANGED = f"{DOMAIN}_alarm_changed"
 SIGNAL_ALARM_REMOVED = f"{DOMAIN}_alarm_removed"
 
 EVENT_ALARM_TRIGGERED = f"{DOMAIN}_alarm_triggered"
+ISSUE_ALARMS_WITHOUT_TARGETS = "alarms_without_targets"
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.TIME]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.TIME,
+    Platform.BUTTON,
+]
 
 if TYPE_CHECKING:
     from .manager import AlarmClockManager

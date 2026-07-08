@@ -47,6 +47,7 @@ async def test_sensor_entities_created(
     status = hass.states.get("sensor.kids_room_status")
     enabled = hass.states.get("switch.kids_room_enabled")
     alarm_time = hass.states.get("time.kids_room_alarm_time")
+    trigger_now = hass.states.get("button.kids_room_trigger_now")
     workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
 
     assert next_due is not None
@@ -55,6 +56,7 @@ async def test_sensor_entities_created(
     assert status is not None
     assert enabled is not None
     assert alarm_time is not None
+    assert trigger_now is not None
     assert workspace is not None
     assert workspace.state == "1"
 

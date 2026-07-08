@@ -5,8 +5,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, NoReturn
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.service import ServiceValidationError
 from homeassistant.util import slugify
 
@@ -15,12 +17,16 @@ from .const import (
     ATTR_ALARM_ID,
     ATTR_ALARM_NAME,
     ATTR_ALARM_TIME,
+    ATTR_CONFIG_ENTRY_ID,
     ATTR_DRY_RUN,
     ATTR_ENABLED,
     ATTR_TARGET_ENTITIES,
     ATTR_TARGET_SERVICES,
     DOMAIN,
+    ISSUE_ALARMS_WITHOUT_TARGETS,
     PLATFORMS,
+    SIGNAL_ALARM_CHANGED,
+    SIGNAL_ALARM_REMOVED,
     RuntimeData,
 )
 from .manager import AlarmClock, AlarmClockManager, AlarmValidationError
@@ -60,18 +66,13 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             )
         return alarm_id
 
-    async def _require_single_runtime() -> RuntimeData:
-        entries: dict[str, RuntimeData] = hass.data.get(DOMAIN, {})
-        if not entries:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="integration_not_configured",
-            )
-        return next(iter(entries.values()))
+    async def _require_runtime(call_data: dict[str, Any]) -> RuntimeData:
+        config_entry_id = call_data.get(ATTR_CONFIG_ENTRY_ID)
+        return _resolve_runtime_data(hass, config_entry_id)
 
     async def _handle_alarm_manage(call_data: dict[str, Any]) -> dict[str, Any]:
         """Execute action-based alarm management."""
-        runtime_data = await _require_single_runtime()
+        runtime_data = await _require_runtime(call_data)
 
         action = str(call_data.get(ATTR_ACTION, "")).strip().lower()
         if action not in supported_actions:
@@ -349,6 +350,26 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             async_handle_trigger_alarm,
         )
 
+    async def _sync_repairs_on_alarm_change(_alarm_id: str) -> None:
+        await _async_sync_repairs_issues(hass)
+
+    if not hass.data.get(f"{DOMAIN}_repairs_dispatcher_setup"):
+        unsub_changed = async_dispatcher_connect(
+            hass,
+            SIGNAL_ALARM_CHANGED,
+            lambda alarm_id: hass.async_create_task(
+                _sync_repairs_on_alarm_change(alarm_id)
+            ),
+        )
+        unsub_removed = async_dispatcher_connect(
+            hass,
+            SIGNAL_ALARM_REMOVED,
+            lambda alarm_id: hass.async_create_task(
+                _sync_repairs_on_alarm_change(alarm_id)
+            ),
+        )
+        hass.data[f"{DOMAIN}_repairs_dispatcher_setup"] = [unsub_changed, unsub_removed]
+
     return True
 
 
@@ -365,6 +386,7 @@ async def async_setup_entry(
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    await _async_sync_repairs_issues(hass)
     return True
 
 
@@ -377,6 +399,7 @@ async def async_unload_entry(
     if unload_ok:
         await entry.runtime_data.manager.async_shutdown()
         hass.data[DOMAIN].pop(entry.entry_id)
+        await _async_sync_repairs_issues(hass)
     return unload_ok
 
 
@@ -422,3 +445,92 @@ def _alarm_to_dict(alarm: AlarmClock) -> dict[str, Any]:
         ATTR_TARGET_SERVICES: list(alarm.target_services),
         "last_triggered_iso": alarm.last_triggered_iso,
     }
+
+
+def _resolve_runtime_data(
+    hass: HomeAssistant,
+    config_entry_id: Any | None,
+) -> RuntimeData:
+    """Resolve runtime data from config entry ID or single configured entry."""
+    entries: dict[str, RuntimeData] = hass.data.get(DOMAIN, {})
+    runtime_entries = {
+        entry_id: runtime_data
+        for entry_id, runtime_data in entries.items()
+        if isinstance(runtime_data, RuntimeData)
+    }
+    if not runtime_entries:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="integration_not_configured",
+        )
+
+    if config_entry_id is None:
+        if len(runtime_entries) == 1:
+            return next(iter(runtime_entries.values()))
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_id_required",
+        )
+
+    entry_id = str(config_entry_id).strip()
+    if not entry_id:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="invalid_config_entry_id",
+        )
+
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None or entry.domain != DOMAIN:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_not_found",
+            translation_placeholders={"entry_id": entry_id},
+        )
+
+    if entry.state is not ConfigEntryState.LOADED:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_not_loaded",
+            translation_placeholders={"entry_id": entry_id},
+        )
+
+    runtime_data = runtime_entries.get(entry_id)
+    if runtime_data is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="config_entry_not_loaded",
+            translation_placeholders={"entry_id": entry_id},
+        )
+    return runtime_data
+
+
+async def _async_sync_repairs_issues(hass: HomeAssistant) -> None:
+    """Create or clear actionable repair issues based on runtime alarm state."""
+    runtime_entries = hass.data.get(DOMAIN, {})
+    alarms_without_targets: list[str] = []
+
+    for entry_id, runtime_data in runtime_entries.items():
+        if not isinstance(runtime_data, RuntimeData):
+            continue
+        for alarm in runtime_data.manager.async_list_alarms():
+            if (
+                alarm.enabled
+                and not alarm.target_entities
+                and not alarm.target_services
+            ):
+                alarms_without_targets.append(f"{entry_id}:{alarm.alarm_id}")
+
+    if alarms_without_targets:
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            ISSUE_ALARMS_WITHOUT_TARGETS,
+            is_fixable=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=ISSUE_ALARMS_WITHOUT_TARGETS,
+            translation_placeholders={"count": str(len(alarms_without_targets))},
+            data={"alarms": alarms_without_targets},
+        )
+        return
+
+    ir.async_delete_issue(hass, DOMAIN, ISSUE_ALARMS_WITHOUT_TARGETS)

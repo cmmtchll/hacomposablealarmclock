@@ -27,15 +27,126 @@
   "options": {
     "step": {
       "init": {
-        "title": "Composable Alarm Clock options",
+        "title": "Choose what to manage",
+        "data": {
+          "operation": "Operation"
+        }
+      },
+      "workspace_defaults": {
+        "title": "Workspace defaults",
+        "description": "Set default targets used when creating alarms.",
         "data": {
           "default_target_entities": "Default target entities",
           "default_target_services": "Default target services (comma-separated)"
         }
+      },
+      "add_alarm": {
+        "title": "Add alarm",
+        "description": "Create a new virtual alarm.",
+        "data": {
+          "alarm_id": "Alarm ID",
+          "alarm_name": "Alarm name",
+          "alarm_time": "Alarm time",
+          "enabled": "Enabled",
+          "target_entities": "Target entities",
+          "target_services": "Target services (comma-separated)"
+        }
+      },
+      "select_alarm": {
+        "title": "Select alarm",
+        "data": {
+          "alarm_id": "Alarm"
+        }
+      },
+      "edit_alarm": {
+        "title": "Edit alarm",
+        "description": "Update the selected alarm.",
+        "data": {
+          "alarm_name": "Alarm name",
+          "alarm_time": "Alarm time",
+          "enabled": "Enabled",
+          "target_entities": "Target entities",
+          "target_services": "Target services (comma-separated)"
+        }
+      },
+      "delete_alarm": {
+        "title": "Delete alarm",
+        "description": "Confirm deleting the selected alarm.",
+        "data": {
+          "confirm": "I understand this cannot be undone"
+        }
+      },
+      "clone_alarm": {
+        "title": "Clone alarm",
+        "description": "Create a copy of the selected alarm.",
+        "data": {
+          "alarm_id": "New alarm ID",
+          "alarm_name": "New alarm name",
+          "alarm_time": "Alarm time",
+          "enabled": "Enabled",
+          "target_entities": "Target entities",
+          "target_services": "Target services (comma-separated)"
+        }
+      },
+      "toggle_alarm": {
+        "title": "Enable or disable alarm",
+        "data": {
+          "enabled": "Enabled"
+        }
+      }
+    },
+    "error": {
+      "confirm_required": "Please confirm deletion to continue.",
+      "invalid_alarm_id": "The alarm ID is invalid.",
+      "invalid_alarm_name": "The alarm name cannot be empty.",
+      "invalid_alarm_time": "The alarm time is invalid.",
+      "invalid_target_service": "One or more target services are invalid. Use domain.service format."
+    },
+    "abort": {
+      "no_alarms": "No alarms exist yet.",
+      "alarm_not_found": "The selected alarm no longer exists.",
+      "runtime_unavailable": "The integration is not loaded right now.",
+      "unknown_operation": "Unknown operation selected."
+    }
+  },
+  "selector": {
+    "options_operation": {
+      "options": {
+        "add_alarm": "Add alarm",
+        "edit_alarm": "Edit alarm",
+        "delete_alarm": "Delete alarm",
+        "clone_alarm": "Clone alarm",
+        "toggle_alarm": "Enable or disable alarm",
+        "workspace_defaults": "Workspace defaults"
+      }
+    },
+    "alarm_manage_action": {
+      "options": {
+        "create": "Create",
+        "update": "Update",
+        "upsert": "Create or update",
+        "delete": "Delete",
+        "enable": "Enable",
+        "disable": "Disable",
+        "trigger_now": "Trigger now",
+        "list": "List"
       }
     }
   },
+  "device": {
+    "workspace_device": {
+      "name": "Alarm workspace"
+    },
+    "alarm_device": {
+      "name": "Alarm {name}"
+    }
+  },
   "entity": {
+    "button": {
+      "trigger_now": {
+        "name": "Trigger now"
+      }
+    },
     "sensor": {
       "next_due": {
         "name": "Next due"
@@ -69,6 +180,10 @@
       "name": "Manage alarm",
       "description": "Manage virtual alarms through one action-based service.",
       "fields": {
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional integration entry to target; required when multiple entries exist"
+        },
         "action": {
           "name": "Action",
           "description": "Operation to perform: create, update, upsert, delete, enable, disable, trigger_now, or list"
@@ -101,12 +216,21 @@
           "name": "Dry run",
           "description": "Validate and preview the action without storing or triggering"
         }
+      },
+      "sections": {
+        "advanced": {
+          "name": "Advanced options"
+        }
       }
     },
     "create_alarm": {
       "name": "Create alarm",
       "description": "Create or replace a virtual alarm clock.",
       "fields": {
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional integration entry to target; required when multiple entries exist"
+        },
         "alarm_id": {
           "name": "Alarm ID",
           "description": "Optional stable alarm identifier"
@@ -137,6 +261,10 @@
       "name": "Update alarm",
       "description": "Update an existing virtual alarm clock.",
       "fields": {
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional integration entry to target; required when multiple entries exist"
+        },
         "alarm_id": {
           "name": "Alarm ID",
           "description": "Alarm identifier to update"
@@ -147,6 +275,10 @@
       "name": "Delete alarm",
       "description": "Delete an existing virtual alarm clock.",
       "fields": {
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional integration entry to target; required when multiple entries exist"
+        },
         "alarm_id": {
           "name": "Alarm ID",
           "description": "Alarm identifier to remove"
@@ -157,6 +289,10 @@
       "name": "Trigger alarm now",
       "description": "Trigger an alarm immediately.",
       "fields": {
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional integration entry to target; required when multiple entries exist"
+        },
         "alarm_id": {
           "name": "Alarm ID",
           "description": "Alarm identifier to trigger"
@@ -189,8 +325,36 @@
     "invalid_action": {
       "message": "Action {action} is not supported."
     },
+    "invalid_config_entry_id": {
+      "message": "The provided config entry ID is invalid."
+    },
+    "config_entry_id_required": {
+      "message": "Please provide config_entry_id when multiple Composable Alarm Clock entries are configured."
+    },
+    "config_entry_not_found": {
+      "message": "Config entry {entry_id} was not found for this integration."
+    },
+    "config_entry_not_loaded": {
+      "message": "Config entry {entry_id} is not currently loaded."
+    },
     "no_update_fields": {
       "message": "Update requires at least one field to change."
+    }
+  },
+  "issues": {
+    "alarms_without_targets": {
+      "title": "Enabled alarms have no targets",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Disable untargeted alarms",
+            "description": "There are {count} enabled alarms with no target entities or services. Disable them now to prevent silent triggers."
+          }
+        },
+        "create_entry": {
+          "default": "Untargeted alarms have been disabled."
+        }
+      }
     }
   }
 }
