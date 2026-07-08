@@ -1,3 +1,51 @@
+alarm_manage:
+  name: Manage alarm
+  description: Manage virtual alarms through one action-based service.
+  fields:
+    action:
+      required: true
+      selector:
+        select:
+          options:
+            - create
+            - update
+            - upsert
+            - delete
+            - enable
+            - disable
+            - trigger_now
+            - list
+    alarm_id:
+      required: false
+      selector:
+        text:
+    alarm_name:
+      required: false
+      selector:
+        text:
+    alarm_time:
+      required: false
+      selector:
+        time:
+    enabled:
+      required: false
+      selector:
+        boolean:
+    target_entities:
+      required: false
+      selector:
+        entity:
+          multiple: true
+    target_services:
+      required: false
+      selector:
+        text:
+    dry_run:
+      required: false
+      default: false
+      selector:
+        boolean:
+
 create_alarm:
   name: Create alarm
   description: Create or replace a virtual alarm clock.

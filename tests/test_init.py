@@ -193,3 +193,139 @@ async def test_setup_skips_invalid_stored_alarm(
     manager = hass.data[DOMAIN][entry.entry_id].manager
     assert manager.async_list_alarms() == []
     assert "Skipping invalid stored alarm" in caplog.text
+
+
+async def test_alarm_manage_create_list_and_delete(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test alarm_manage can create, list, and delete alarms."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    create_result = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {
+            "action": "create",
+            "alarm_id": "kitchen",
+            "alarm_name": "Kitchen",
+            "alarm_time": "06:30:00",
+            "enabled": True,
+        },
+        blocking=True,
+        return_response=True,
+    )
+    assert create_result["ok"] is True
+    assert create_result["action"] == "create"
+
+    list_result = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {"action": "list"},
+        blocking=True,
+        return_response=True,
+    )
+    assert list_result["count"] == 1
+    assert list_result["alarms"][0]["alarm_id"] == "kitchen"
+
+    delete_result = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {"action": "delete", "alarm_id": "kitchen"},
+        blocking=True,
+        return_response=True,
+    )
+    assert delete_result["ok"] is True
+    assert delete_result["action"] == "delete"
+
+
+async def test_alarm_manage_update_requires_mutation_fields(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test alarm_manage update fails when no mutable fields are supplied."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "office",
+            "alarm_name": "Office",
+            "alarm_time": "07:15:00",
+        },
+        blocking=True,
+    )
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {"action": "update", "alarm_id": "office"},
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "no_update_fields"
+
+
+async def test_alarm_manage_dry_run_does_not_persist(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test alarm_manage dry_run validates without writing state."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {
+            "action": "create",
+            "alarm_id": "guest_room",
+            "alarm_name": "Guest Room",
+            "alarm_time": "08:00:00",
+            "dry_run": True,
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    assert result["ok"] is True
+    assert result["dry_run"] is True
+    assert result["changed"] is False
+
+    list_result = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {"action": "list"},
+        blocking=True,
+        return_response=True,
+    )
+    assert list_result["count"] == 0
+
+
+async def test_alarm_manage_rejects_invalid_action(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test alarm_manage rejects unsupported actions."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {"action": "explode"},
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "invalid_action"

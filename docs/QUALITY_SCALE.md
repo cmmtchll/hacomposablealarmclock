@@ -13,6 +13,7 @@ This document maps repository implementation to Home Assistant Quality Scale exp
 
 - Config flow, unique IDs, and setup validation.
 - Service-layer alarm validation with translated errors for invalid input and missing alarms.
+- Action-based `alarm_manage` service for Devices and Services with dry-run validation.
 - Runtime data in `ConfigEntry.runtime_data`.
 - Config entry unload/reload behavior.
 - Logging for availability transitions.
