@@ -264,3 +264,52 @@ async def test_alarm_removed_dispatch_from_executor_is_thread_safe(
     await hass.async_block_till_done()
 
     assert "calls async_write_ha_state from a thread other than the event loop" not in caplog.text
+
+
+async def test_dispatch_after_unload_does_not_log_thread_or_pending_task_errors(
+    hass: HomeAssistant,
+    setup_integration,
+    caplog,
+) -> None:
+    """Test dispatcher signals after unload do not create thread/pending-task errors."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "kids_room",
+            "alarm_name": "Kids Room",
+            "alarm_time": "07:00:00",
+            "enabled": True,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    caplog.set_level(logging.ERROR)
+    caplog.clear()
+
+    await hass.async_add_executor_job(
+        async_dispatcher_send,
+        hass,
+        SIGNAL_ALARM_CHANGED,
+        "kids_room",
+    )
+    await hass.async_add_executor_job(
+        async_dispatcher_send,
+        hass,
+        SIGNAL_ALARM_REMOVED,
+        "kids_room",
+    )
+    await hass.async_block_till_done()
+
+    assert "calls async_write_ha_state from a thread other than the event loop" not in caplog.text
+    assert "Task was destroyed but it is pending" not in caplog.text
+    assert "is not the running loop" not in caplog.text

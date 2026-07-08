@@ -57,11 +57,15 @@ class ComposableAlarmEntity(Entity):
         def _handle_changed(alarm_id: str) -> None:
             if alarm_id != self._alarm_id:
                 return
+            if self.platform is None or self.hass.is_stopping:
+                return
             self.hass.add_job(self.async_write_ha_state)
 
         @callback
         def _handle_removed(alarm_id: str) -> None:
             if alarm_id != self._alarm_id:
+                return
+            if self.platform is None or self.hass.is_stopping:
                 return
             self.hass.add_job(self.async_write_ha_state)
 

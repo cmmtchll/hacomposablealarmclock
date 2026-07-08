@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
 )
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -41,6 +42,8 @@ async def async_setup_entry(
 
     @callback
     def _async_add_alarm_entities_job(alarm_id: str) -> None:
+        if hass.is_stopping or entry.state is not ConfigEntryState.LOADED:
+            return
         if manager.async_get_alarm(alarm_id) is None:
             return
         if alarm_id in known_alarms:
@@ -49,6 +52,8 @@ async def async_setup_entry(
         async_add_entities(_create_entities_for_alarm(alarm_id))
 
     def _async_add_alarm_entities(alarm_id: str) -> None:
+        if hass.is_stopping or entry.state is not ConfigEntryState.LOADED:
+            return
         hass.add_job(_async_add_alarm_entities_job, alarm_id)
 
     for alarm in manager.async_list_alarms():
@@ -153,10 +158,14 @@ class WorkspaceOverviewSensor(SensorEntity):
 
         @callback
         def _handle_alarm_changed(_alarm_id: str) -> None:
+            if self.platform is None or self.hass.is_stopping:
+                return
             self.hass.add_job(self.async_write_ha_state)
 
         @callback
         def _handle_alarm_removed(_alarm_id: str) -> None:
+            if self.platform is None or self.hass.is_stopping:
+                return
             self.hass.add_job(self.async_write_ha_state)
 
         self.async_on_remove(
