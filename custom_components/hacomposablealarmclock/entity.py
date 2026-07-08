@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_ALARM_CHANGED, SIGNAL_ALARM_REMOVED
 from .manager import AlarmClockManager
 
 
@@ -46,4 +48,34 @@ class ComposableAlarmEntity(Entity):
             model="Virtual Alarm Clock",
             name=self.alarm_name,
             entry_type=None,
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to manager signals to keep entity state in sync."""
+
+        @callback
+        def _handle_changed(alarm_id: str) -> None:
+            if alarm_id != self._alarm_id:
+                return
+            self.async_write_ha_state()
+
+        @callback
+        def _handle_removed(alarm_id: str) -> None:
+            if alarm_id != self._alarm_id:
+                return
+            self.async_write_ha_state()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_ALARM_CHANGED,
+                _handle_changed,
+            )
+        )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_ALARM_REMOVED,
+                _handle_removed,
+            )
         )

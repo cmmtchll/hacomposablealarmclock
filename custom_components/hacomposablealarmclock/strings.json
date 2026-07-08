@@ -42,6 +42,15 @@
       },
       "last_triggered": {
         "name": "Last triggered"
+      },
+      "configuration": {
+        "name": "Configuration"
+      },
+      "status": {
+        "name": "Status"
+      },
+      "workspace_overview": {
+        "name": "Workspace overview"
       }
     },
     "switch": {

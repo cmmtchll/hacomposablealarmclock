@@ -18,7 +18,9 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 - Dynamic entities per alarm:
    - `switch` for enabled/disabled
    - `time` for alarm time
-   - `sensor` for next due and last triggered timestamps
+   - `sensor` for next due, last triggered, configuration, and status
+- Workspace-level summary entity:
+   - `sensor` for workspace overview (alarm count + compact alarm snapshot list)
 - Service actions to create, update, delete, and trigger alarms
 - Event emission when alarms are due: `hacomposablealarmclock_alarm_triggered`
 - Diagnostics output with stored alarm definitions

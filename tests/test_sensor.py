@@ -17,6 +17,10 @@ async def test_sensor_entities_created(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
+    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+    assert workspace is not None
+    assert workspace.state == "0"
+
     await hass.services.async_call(
         DOMAIN,
         "create_alarm",
@@ -32,10 +36,147 @@ async def test_sensor_entities_created(
 
     next_due = hass.states.get("sensor.kids_room_next_due")
     last_triggered = hass.states.get("sensor.kids_room_last_triggered")
+    configuration = hass.states.get("sensor.kids_room_configuration")
+    status = hass.states.get("sensor.kids_room_status")
     enabled = hass.states.get("switch.kids_room_enabled")
     alarm_time = hass.states.get("time.kids_room_alarm_time")
+    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
 
     assert next_due is not None
     assert last_triggered is not None
+    assert configuration is not None
+    assert status is not None
     assert enabled is not None
     assert alarm_time is not None
+    assert workspace is not None
+    assert workspace.state == "1"
+
+
+async def test_workspace_overview_includes_alarm_snapshot(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test workspace overview exposes compact alarm snapshots."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "kids_room",
+            "alarm_name": "Kids Room",
+            "alarm_time": "07:30:00",
+            "enabled": True,
+            "target_entities": ["light.kids_room_lamp", "switch.kids_fan"],
+            "target_services": ["notify.mobile_app_parent"],
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+
+    assert workspace is not None
+    assert workspace.state == "1"
+    alarms = workspace.attributes["alarms"]
+    assert len(alarms) == 1
+    assert alarms[0]["alarm_id"] == "kids_room"
+    assert alarms[0]["target_entities_count"] == 2
+    assert alarms[0]["target_services_count"] == 1
+
+
+async def test_alarm_config_and_status_attributes(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test per-alarm config and status sensors expose expected attributes."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "kids_room",
+            "alarm_name": "Kids Room",
+            "alarm_time": "06:45:00",
+            "enabled": False,
+            "target_entities": ["light.kids_room_lamp", "switch.kids_fan"],
+            "target_services": ["script.wake_kids"],
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    config_state = hass.states.get("sensor.kids_room_configuration")
+    status_state = hass.states.get("sensor.kids_room_status")
+
+    assert config_state is not None
+    assert status_state is not None
+
+    assert config_state.state == "3"
+    assert config_state.attributes["alarm_time"] == "06:45:00"
+    assert config_state.attributes["enabled"] is False
+    assert config_state.attributes["target_entities"] == [
+        "light.kids_room_lamp",
+        "switch.kids_fan",
+    ]
+    assert config_state.attributes["target_services"] == ["script.wake_kids"]
+
+    assert status_state.state == "disabled"
+    assert status_state.attributes["alarm_id"] == "kids_room"
+    assert status_state.attributes["target_entities_count"] == 2
+    assert status_state.attributes["target_services_count"] == 1
+
+
+async def test_alarm_entities_become_unavailable_after_delete(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test per-alarm entities become unavailable after deleting the alarm."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "kids_room",
+            "alarm_name": "Kids Room",
+            "alarm_time": "07:15:00",
+            "enabled": True,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "delete_alarm",
+        {"alarm_id": "kids_room"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    for entity_id in (
+        "sensor.kids_room_next_due",
+        "sensor.kids_room_last_triggered",
+        "sensor.kids_room_configuration",
+        "sensor.kids_room_status",
+        "switch.kids_room_enabled",
+        "time.kids_room_alarm_time",
+    ):
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.state == "unavailable"
+
+    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+    assert workspace is not None
+    assert workspace.state == "0"
