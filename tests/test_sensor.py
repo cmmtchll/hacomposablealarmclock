@@ -136,6 +136,7 @@ async def test_alarm_config_and_status_attributes(
     assert config_state.attributes["target_services"] == ["script.wake_kids"]
 
     assert status_state.state == "disabled"
+    assert status_state.attributes.get("device_class") == "enum"
     assert status_state.attributes["alarm_id"] == "kids_room"
     assert status_state.attributes["target_entities_count"] == 2
     assert status_state.attributes["target_services_count"] == 1

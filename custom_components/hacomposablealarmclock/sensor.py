@@ -202,7 +202,8 @@ class AlarmStatusSensor(ComposableAlarmEntity, SensorEntity):
     """Expose runtime status for one virtual alarm."""
 
     _attr_translation_key = "status"
-    _attr_options = [AlarmState.DISABLED, AlarmState.SCHEDULED]
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [AlarmState.DISABLED.value, AlarmState.SCHEDULED.value]
 
     def __init__(
         self,
@@ -219,7 +220,7 @@ class AlarmStatusSensor(ComposableAlarmEntity, SensorEntity):
         alarm = self._manager.async_get_alarm(self._alarm_id)
         if alarm is None:
             return None
-        return AlarmState.SCHEDULED if alarm.enabled else AlarmState.DISABLED
+        return AlarmState.SCHEDULED.value if alarm.enabled else AlarmState.DISABLED.value
 
     @property
     def extra_state_attributes(self) -> dict[str, str | bool | int | list[str] | None]:
