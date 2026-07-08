@@ -6,6 +6,15 @@
       },
       "last_triggered": {
         "default": "mdi:alarm-check"
+      },
+      "configuration": {
+        "default": "mdi:tune-variant"
+      },
+      "status": {
+        "default": "mdi:alarm-light"
+      },
+      "workspace_overview": {
+        "default": "mdi:view-dashboard"
       }
     },
     "switch": {
