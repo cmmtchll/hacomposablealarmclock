@@ -1,0 +1,22 @@
+{
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "default": "mdi:alarm"
+      },
+      "last_triggered": {
+        "default": "mdi:alarm-check"
+      }
+    },
+    "switch": {
+      "enabled": {
+        "default": "mdi:alarm"
+      }
+    },
+    "time": {
+      "alarm_time": {
+        "default": "mdi:clock-outline"
+      }
+    }
+  }
+}

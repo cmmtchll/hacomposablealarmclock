@@ -1,0 +1,78 @@
+create_alarm:
+  name: Create alarm
+  description: Create or replace a virtual alarm clock.
+  fields:
+    alarm_id:
+      required: false
+      selector:
+        text:
+    alarm_name:
+      required: true
+      selector:
+        text:
+    alarm_time:
+      required: true
+      selector:
+        time:
+    enabled:
+      required: false
+      default: true
+      selector:
+        boolean:
+    target_entities:
+      required: false
+      selector:
+        entity:
+          multiple: true
+    target_services:
+      required: false
+      selector:
+        text:
+
+update_alarm:
+  name: Update alarm
+  description: Update an existing virtual alarm clock.
+  fields:
+    alarm_id:
+      required: true
+      selector:
+        text:
+    alarm_name:
+      required: false
+      selector:
+        text:
+    alarm_time:
+      required: false
+      selector:
+        time:
+    enabled:
+      required: false
+      selector:
+        boolean:
+    target_entities:
+      required: false
+      selector:
+        entity:
+          multiple: true
+    target_services:
+      required: false
+      selector:
+        text:
+
+delete_alarm:
+  name: Delete alarm
+  description: Delete a virtual alarm clock.
+  fields:
+    alarm_id:
+      required: true
+      selector:
+        text:
+
+trigger_alarm:
+  name: Trigger alarm now
+  description: Trigger a virtual alarm immediately.
+  fields:
+    alarm_id:
+      required: true
+      selector:
+        text:
