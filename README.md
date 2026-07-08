@@ -52,6 +52,37 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 5. Add "Composable Alarm Clock" and complete setup.
 6. Open the integration Options to manage alarms with guided forms.
 
+## Lovelace dashboard template
+
+This repository includes a dashboard template at:
+
+- `docs/LOVELACE_DASHBOARD.yaml`
+
+What it includes:
+
+- Flow-aligned alarm management controls using `hacomposablealarmclock.alarm_manage`
+- Buttons for legacy services (`create_alarm`, `update_alarm`, `delete_alarm`, `trigger_alarm`)
+- Visualization cards for workspace overview and per-alarm status/timeline
+
+How to use:
+
+1. Open Home Assistant and create a new dashboard (or edit an existing one in YAML mode).
+2. Copy the contents of `docs/LOVELACE_DASHBOARD.yaml` into the dashboard YAML.
+3. Replace each `REPLACE_...` entity placeholder with real entity IDs from Developer Tools -> States.
+4. Update sample `alarm_id`, names, times, and targets to match your environment.
+
+## Lovelace custom dashboard strategy
+
+This repository also includes a custom dashboard strategy scaffold:
+
+- `docs/lovelace_strategy/hacomposablealarmclock-dashboard-strategy.js`
+
+This strategy can appear under Home Assistant's **Add dashboard** dialog (Community dashboards) once loaded as a frontend module resource.
+
+Setup guide:
+
+- `docs/lovelace_strategy/README.md`
+
 ## Service actions
 
 - `hacomposablealarmclock.alarm_manage`

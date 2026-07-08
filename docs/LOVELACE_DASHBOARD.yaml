@@ -1,0 +1,235 @@
+title: Composable Alarm Clock
+views:
+  - title: Alarm Workspace
+    path: alarm-workspace
+    icon: mdi:alarm-panel
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            content: |
+              ## Composable Alarm Clock Dashboard
+
+              This dashboard is a ready template for management + visualization.
+
+              Steps before use:
+              1. Replace every `REPLACE_...` entity with your actual entity id.
+              2. Open Developer Tools -> States to find entity ids.
+              3. Keep `config_entry_id` omitted unless you run multiple integration entries.
+
+              Tip: Use the Devices page to confirm one alarm's switch/time/sensor/button ids,
+              then duplicate the visualization cards for additional alarms.
+          - type: entities
+            title: Workspace Summary
+            show_header_toggle: false
+            entities:
+              - entity: sensor.REPLACE_workspace_overview
+                name: Alarm count
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Unified Action Service
+            icon: mdi:cog
+          - type: grid
+            columns: 3
+            square: false
+            cards:
+              - type: button
+                name: List alarms
+                icon: mdi:format-list-bulleted
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: list
+              - type: button
+                name: Dry run list
+                icon: mdi:clipboard-text-search
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: list
+                    dry_run: true
+              - type: button
+                name: Trigger now (sample)
+                icon: mdi:bell-ring
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: trigger_now
+                    alarm_id: weekday_0730
+
+              - type: button
+                name: Enable (sample)
+                icon: mdi:toggle-switch
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: enable
+                    alarm_id: weekday_0730
+              - type: button
+                name: Disable (sample)
+                icon: mdi:toggle-switch-off
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: disable
+                    alarm_id: weekday_0730
+              - type: button
+                name: Delete (sample)
+                icon: mdi:delete
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: delete
+                    alarm_id: weekday_0730
+                confirmation:
+                  text: Delete sample alarm weekday_0730?
+
+              - type: button
+                name: Create (sample)
+                icon: mdi:plus-circle
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: create
+                    alarm_id: weekday_0730
+                    alarm_name: Weekday Alarm
+                    alarm_time: "07:30:00"
+                    enabled: true
+                    target_entities:
+                      - light.bedroom_lamp
+              - type: button
+                name: Update (sample)
+                icon: mdi:pencil
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: update
+                    alarm_id: weekday_0730
+                    alarm_time: "07:15:00"
+              - type: button
+                name: Upsert (sample)
+                icon: mdi:database-sync
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.alarm_manage
+                  data:
+                    action: upsert
+                    alarm_id: weekend_0830
+                    alarm_name: Weekend Alarm
+                    alarm_time: "08:30:00"
+                    enabled: true
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Legacy Service Buttons
+            icon: mdi:wrench
+          - type: grid
+            columns: 4
+            square: false
+            cards:
+              - type: button
+                name: create_alarm
+                icon: mdi:plus
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.create_alarm
+                  data:
+                    alarm_id: school_day
+                    alarm_name: School Day Alarm
+                    alarm_time: "06:45:00"
+                    enabled: true
+              - type: button
+                name: update_alarm
+                icon: mdi:update
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.update_alarm
+                  data:
+                    alarm_id: school_day
+                    alarm_time: "06:30:00"
+              - type: button
+                name: delete_alarm
+                icon: mdi:trash-can
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.delete_alarm
+                  data:
+                    alarm_id: school_day
+                confirmation:
+                  text: Delete school_day?
+              - type: button
+                name: trigger_alarm
+                icon: mdi:alarm-light
+                tap_action:
+                  action: call-service
+                  service: hacomposablealarmclock.trigger_alarm
+                  data:
+                    alarm_id: school_day
+
+  - title: Alarm Visualization
+    path: alarm-visualization
+    icon: mdi:chart-timeline-variant
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Single Alarm Live View
+            icon: mdi:alarm
+          - type: entities
+            title: Alarm Controls and State
+            show_header_toggle: false
+            entities:
+              - entity: switch.REPLACE_alarm_enabled
+                name: Enabled
+              - entity: time.REPLACE_alarm_time
+                name: Alarm time
+              - entity: button.REPLACE_alarm_trigger_now
+                name: Trigger now
+              - entity: sensor.REPLACE_alarm_status
+                name: Status
+              - entity: sensor.REPLACE_alarm_next_due
+                name: Next due
+              - entity: sensor.REPLACE_alarm_last_triggered
+                name: Last triggered
+              - entity: sensor.REPLACE_alarm_configuration
+                name: Configuration summary
+
+      - type: grid
+        cards:
+          - type: history-graph
+            title: Alarm Timeline
+            hours_to_show: 72
+            entities:
+              - entity: sensor.REPLACE_alarm_status
+              - entity: sensor.REPLACE_alarm_next_due
+              - entity: sensor.REPLACE_alarm_last_triggered
+
+      - type: grid
+        cards:
+          - type: markdown
+            content: |
+              ## Replicate for More Alarms
+
+              Duplicate the "Alarm Controls and State" card, then replace:
+              - `switch.REPLACE_alarm_enabled`
+              - `time.REPLACE_alarm_time`
+              - `button.REPLACE_alarm_trigger_now`
+              - `sensor.REPLACE_alarm_status`
+              - `sensor.REPLACE_alarm_next_due`
+              - `sensor.REPLACE_alarm_last_triggered`
+              - `sensor.REPLACE_alarm_configuration`
+
+              You can build one section per room or per family member.
