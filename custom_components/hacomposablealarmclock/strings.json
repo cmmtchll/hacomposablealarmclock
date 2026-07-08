@@ -1,0 +1,134 @@
+{
+  "title": "Composable Alarm Clock",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Composable Alarm Clock",
+        "description": "Create a virtual alarm-clock workspace for your home.",
+        "data": {
+          "name": "Workspace name"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Composable Alarm Clock",
+        "description": "Rename this virtual alarm workspace.",
+        "data": {
+          "name": "Workspace name"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "A Composable Alarm Clock workspace is already configured",
+      "reauth_not_supported": "Reauthentication is not required for this local integration",
+      "reconfigure_successful": "Reconfiguration was successful",
+      "unknown": "Unexpected error"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Composable Alarm Clock options",
+        "data": {
+          "default_target_entities": "Default target entities",
+          "default_target_services": "Default target services (comma-separated)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Next due"
+      },
+      "last_triggered": {
+        "name": "Last triggered"
+      }
+    },
+    "switch": {
+      "enabled": {
+        "name": "Enabled"
+      }
+    },
+    "time": {
+      "alarm_time": {
+        "name": "Alarm time"
+      }
+    }
+  },
+  "services": {
+    "create_alarm": {
+      "name": "Create alarm",
+      "description": "Create or replace a virtual alarm clock.",
+      "fields": {
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "Optional stable alarm identifier"
+        },
+        "alarm_name": {
+          "name": "Alarm name",
+          "description": "Display name for the virtual alarm"
+        },
+        "alarm_time": {
+          "name": "Alarm time",
+          "description": "Daily time to trigger the alarm"
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Whether this alarm is currently active"
+        },
+        "target_entities": {
+          "name": "Target entities",
+          "description": "Entities to turn on when alarm triggers"
+        },
+        "target_services": {
+          "name": "Target services",
+          "description": "Services to call when alarm triggers (domain.service)"
+        }
+      }
+    },
+    "update_alarm": {
+      "name": "Update alarm",
+      "description": "Update an existing virtual alarm clock.",
+      "fields": {
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "Alarm identifier to update"
+        }
+      }
+    },
+    "delete_alarm": {
+      "name": "Delete alarm",
+      "description": "Delete an existing virtual alarm clock.",
+      "fields": {
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "Alarm identifier to remove"
+        }
+      }
+    },
+    "trigger_alarm": {
+      "name": "Trigger alarm now",
+      "description": "Trigger an alarm immediately.",
+      "fields": {
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "Alarm identifier to trigger"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "integration_not_configured": {
+      "message": "Composable Alarm Clock is not configured yet."
+    },
+    "invalid_alarm_id": {
+      "message": "The alarm ID is invalid."
+    },
+    "alarm_not_found": {
+      "message": "Alarm {alarm_id} was not found."
+    },
+    "invalid_list_input": {
+      "message": "Expected text or list input."
+    }
+  }
+}
