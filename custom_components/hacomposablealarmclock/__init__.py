@@ -6,14 +6,16 @@ from collections.abc import Sequence
 from typing import Any, NoReturn
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers.service import ServiceValidationError
 from homeassistant.util import slugify
 
 from .const import (
+    ATTR_ACTION,
     ATTR_ALARM_ID,
     ATTR_ALARM_NAME,
     ATTR_ALARM_TIME,
+    ATTR_DRY_RUN,
     ATTR_ENABLED,
     ATTR_TARGET_ENTITIES,
     ATTR_TARGET_SERVICES,
@@ -29,6 +31,16 @@ type ComposableAlarmConfigEntry = ConfigEntry[RuntimeData]
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up integration via YAML (unused) and shared services."""
     del config
+    supported_actions = {
+        "create",
+        "update",
+        "upsert",
+        "delete",
+        "enable",
+        "disable",
+        "trigger_now",
+        "list",
+    }
 
     def _raise_service_validation_error(error: AlarmValidationError) -> NoReturn:
         """Convert manager validation errors to translated service errors."""
@@ -57,85 +69,269 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             )
         return next(iter(entries.values()))
 
-    async def async_handle_create_alarm(call: ServiceCall) -> None:
-        """Create or replace a virtual alarm clock."""
+    async def _handle_alarm_manage(call_data: dict[str, Any]) -> dict[str, Any]:
+        """Execute action-based alarm management."""
         runtime_data = await _require_single_runtime()
 
-        alarm_name = str(call.data[ATTR_ALARM_NAME]).strip()
-        alarm_id = _require_alarm_id(
-            call.data.get(ATTR_ALARM_ID) or slugify(alarm_name)
+        action = str(call_data.get(ATTR_ACTION, "")).strip().lower()
+        if action not in supported_actions:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_action",
+                translation_placeholders={"action": action or "<empty>"},
+            )
+
+        dry_run = bool(call_data.get(ATTR_DRY_RUN, False))
+
+        if action == "list":
+            alarms = [
+                _alarm_to_dict(alarm)
+                for alarm in runtime_data.manager.async_list_alarms()
+            ]
+            return {
+                "ok": True,
+                "action": action,
+                "dry_run": dry_run,
+                "changed": False,
+                "alarms": alarms,
+                "count": len(alarms),
+            }
+
+        if action in {"delete", "enable", "disable", "trigger_now", "update", "upsert"}:
+            alarm_id = _require_alarm_id(call_data.get(ATTR_ALARM_ID))
+            existing_alarm = runtime_data.manager.async_get_alarm(alarm_id)
+        else:
+            alarm_id = _require_alarm_id(
+                call_data.get(ATTR_ALARM_ID)
+                or slugify(str(call_data.get(ATTR_ALARM_NAME, "")))
+            )
+            existing_alarm = runtime_data.manager.async_get_alarm(alarm_id)
+
+        if action == "delete":
+            if existing_alarm is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="alarm_not_found",
+                    translation_placeholders={"alarm_id": alarm_id},
+                )
+            if not dry_run:
+                await runtime_data.manager.async_delete_alarm(alarm_id)
+            return {
+                "ok": True,
+                "action": action,
+                "dry_run": dry_run,
+                "changed": not dry_run,
+                "alarm_id": alarm_id,
+            }
+
+        if action in {"enable", "disable"}:
+            if existing_alarm is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="alarm_not_found",
+                    translation_placeholders={"alarm_id": alarm_id},
+                )
+            enabled_value = action == "enable"
+            if not dry_run:
+                await runtime_data.manager.async_set_enabled(alarm_id, enabled_value)
+            return {
+                "ok": True,
+                "action": action,
+                "dry_run": dry_run,
+                "changed": not dry_run,
+                "alarm_id": alarm_id,
+                "enabled": enabled_value,
+            }
+
+        if action == "trigger_now":
+            if existing_alarm is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="alarm_not_found",
+                    translation_placeholders={"alarm_id": alarm_id},
+                )
+            if not dry_run:
+                await runtime_data.manager.async_trigger_alarm_now(alarm_id)
+            return {
+                "ok": True,
+                "action": action,
+                "dry_run": dry_run,
+                "changed": not dry_run,
+                "alarm_id": alarm_id,
+            }
+
+        if action == "create":
+            alarm_name = str(call_data.get(ATTR_ALARM_NAME, "")).strip()
+            alarm_time = str(call_data.get(ATTR_ALARM_TIME, "")).strip()
+            if not alarm_name:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="invalid_alarm_name",
+                )
+            if not alarm_time:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="invalid_alarm_time",
+                )
+
+            alarm = AlarmClock(
+                alarm_id=alarm_id,
+                name=alarm_name,
+                alarm_time=alarm_time,
+                enabled=bool(call_data.get(ATTR_ENABLED, True)),
+                target_entities=_coerce_str_list(call_data.get(ATTR_TARGET_ENTITIES)),
+                target_services=_coerce_str_list(call_data.get(ATTR_TARGET_SERVICES)),
+            )
+            try:
+                if not dry_run:
+                    await runtime_data.manager.async_upsert_alarm(alarm)
+            except AlarmValidationError as err:
+                _raise_service_validation_error(err)
+
+            return {
+                "ok": True,
+                "action": action,
+                "dry_run": dry_run,
+                "changed": not dry_run,
+                "alarm": _alarm_to_dict(alarm),
+            }
+
+        if existing_alarm is None and action == "update":
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="alarm_not_found",
+                translation_placeholders={"alarm_id": alarm_id},
+            )
+
+        if action in {"update", "upsert"}:
+            has_mutation_fields = any(
+                key in call_data
+                for key in (
+                    ATTR_ALARM_NAME,
+                    ATTR_ALARM_TIME,
+                    ATTR_ENABLED,
+                    ATTR_TARGET_ENTITIES,
+                    ATTR_TARGET_SERVICES,
+                )
+            )
+            if not has_mutation_fields and action == "update":
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="no_update_fields",
+                )
+
+            if existing_alarm is None:
+                alarm_name = str(call_data.get(ATTR_ALARM_NAME, "")).strip()
+                alarm_time = str(call_data.get(ATTR_ALARM_TIME, "")).strip()
+                if not alarm_name:
+                    raise ServiceValidationError(
+                        translation_domain=DOMAIN,
+                        translation_key="invalid_alarm_name",
+                    )
+                if not alarm_time:
+                    raise ServiceValidationError(
+                        translation_domain=DOMAIN,
+                        translation_key="invalid_alarm_time",
+                    )
+
+                alarm = AlarmClock(
+                    alarm_id=alarm_id,
+                    name=alarm_name,
+                    alarm_time=alarm_time,
+                    enabled=bool(call_data.get(ATTR_ENABLED, True)),
+                    target_entities=_coerce_str_list(call_data.get(ATTR_TARGET_ENTITIES)),
+                    target_services=_coerce_str_list(call_data.get(ATTR_TARGET_SERVICES)),
+                )
+            else:
+                alarm = AlarmClock(
+                    alarm_id=alarm_id,
+                    name=(
+                        str(call_data[ATTR_ALARM_NAME]).strip()
+                        if ATTR_ALARM_NAME in call_data
+                        else existing_alarm.name
+                    ),
+                    alarm_time=(
+                        str(call_data[ATTR_ALARM_TIME])
+                        if ATTR_ALARM_TIME in call_data
+                        else existing_alarm.alarm_time
+                    ),
+                    enabled=(
+                        bool(call_data[ATTR_ENABLED])
+                        if ATTR_ENABLED in call_data
+                        else existing_alarm.enabled
+                    ),
+                    target_entities=(
+                        _coerce_str_list(call_data.get(ATTR_TARGET_ENTITIES))
+                        if ATTR_TARGET_ENTITIES in call_data
+                        else existing_alarm.target_entities
+                    ),
+                    target_services=(
+                        _coerce_str_list(call_data.get(ATTR_TARGET_SERVICES))
+                        if ATTR_TARGET_SERVICES in call_data
+                        else existing_alarm.target_services
+                    ),
+                    last_triggered_iso=existing_alarm.last_triggered_iso,
+                )
+
+            try:
+                if not dry_run:
+                    await runtime_data.manager.async_upsert_alarm(alarm)
+            except AlarmValidationError as err:
+                _raise_service_validation_error(err)
+
+            return {
+                "ok": True,
+                "action": action,
+                "dry_run": dry_run,
+                "changed": not dry_run,
+                "alarm": _alarm_to_dict(alarm),
+            }
+
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="invalid_action",
+            translation_placeholders={"action": action},
         )
 
-        alarm = AlarmClock(
-            alarm_id=alarm_id,
-            name=alarm_name,
-            alarm_time=str(call.data[ATTR_ALARM_TIME]),
-            enabled=bool(call.data.get(ATTR_ENABLED, True)),
-            target_entities=_coerce_str_list(call.data.get(ATTR_TARGET_ENTITIES)),
-            target_services=_coerce_str_list(call.data.get(ATTR_TARGET_SERVICES)),
-        )
-        try:
-            await runtime_data.manager.async_upsert_alarm(alarm)
-        except AlarmValidationError as err:
-            _raise_service_validation_error(err)
+    async def async_handle_alarm_manage(call: ServiceCall) -> dict[str, Any]:
+        """Handle action-based alarm management."""
+        return await _handle_alarm_manage(dict(call.data))
+
+    async def async_handle_create_alarm(call: ServiceCall) -> None:
+        """Create or replace a virtual alarm clock."""
+        payload = dict(call.data)
+        payload[ATTR_ACTION] = "create"
+        payload[ATTR_DRY_RUN] = False
+        await _handle_alarm_manage(payload)
 
     async def async_handle_update_alarm(call: ServiceCall) -> None:
         """Update an existing virtual alarm clock."""
-        runtime_data = await _require_single_runtime()
-        alarm_id = _require_alarm_id(call.data[ATTR_ALARM_ID])
-
-        existing_alarm = runtime_data.manager.async_get_alarm(alarm_id)
-        if existing_alarm is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="alarm_not_found",
-                translation_placeholders={"alarm_id": alarm_id},
-            )
-
-        alarm = AlarmClock(
-            alarm_id=alarm_id,
-            name=str(call.data.get(ATTR_ALARM_NAME, existing_alarm.name)).strip(),
-            alarm_time=str(call.data.get(ATTR_ALARM_TIME, existing_alarm.alarm_time)),
-            enabled=bool(call.data.get(ATTR_ENABLED, existing_alarm.enabled)),
-            target_entities=_coerce_str_list(
-                call.data.get(ATTR_TARGET_ENTITIES, existing_alarm.target_entities)
-            ),
-            target_services=_coerce_str_list(
-                call.data.get(ATTR_TARGET_SERVICES, existing_alarm.target_services)
-            ),
-        )
-        try:
-            await runtime_data.manager.async_upsert_alarm(alarm)
-        except AlarmValidationError as err:
-            _raise_service_validation_error(err)
+        payload = dict(call.data)
+        payload[ATTR_ACTION] = "update"
+        payload[ATTR_DRY_RUN] = False
+        await _handle_alarm_manage(payload)
 
     async def async_handle_delete_alarm(call: ServiceCall) -> None:
         """Delete a virtual alarm clock."""
-        runtime_data = await _require_single_runtime()
-        alarm_id = _require_alarm_id(call.data[ATTR_ALARM_ID])
-
-        if runtime_data.manager.async_get_alarm(alarm_id) is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="alarm_not_found",
-                translation_placeholders={"alarm_id": alarm_id},
-            )
-
-        await runtime_data.manager.async_delete_alarm(alarm_id)
+        payload = dict(call.data)
+        payload[ATTR_ACTION] = "delete"
+        payload[ATTR_DRY_RUN] = False
+        await _handle_alarm_manage(payload)
 
     async def async_handle_trigger_alarm(call: ServiceCall) -> None:
         """Trigger an alarm immediately."""
-        runtime_data = await _require_single_runtime()
-        alarm_id = _require_alarm_id(call.data[ATTR_ALARM_ID])
+        payload = dict(call.data)
+        payload[ATTR_ACTION] = "trigger_now"
+        payload[ATTR_DRY_RUN] = False
+        await _handle_alarm_manage(payload)
 
-        if runtime_data.manager.async_get_alarm(alarm_id) is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="alarm_not_found",
-                translation_placeholders={"alarm_id": alarm_id},
-            )
-
-        await runtime_data.manager.async_trigger_alarm_now(alarm_id)
+    if not hass.services.has_service(DOMAIN, "alarm_manage"):
+        hass.services.async_register(
+            DOMAIN,
+            "alarm_manage",
+            async_handle_alarm_manage,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
 
     if not hass.services.has_service(DOMAIN, "create_alarm"):
         hass.services.async_register(DOMAIN, "create_alarm", async_handle_create_alarm)
@@ -213,3 +409,16 @@ def _coerce_str_list(value: Any) -> list[str]:
         translation_domain=DOMAIN,
         translation_key="invalid_list_input",
     )
+
+
+def _alarm_to_dict(alarm: AlarmClock) -> dict[str, Any]:
+    """Serialize one alarm for service responses."""
+    return {
+        ATTR_ALARM_ID: alarm.alarm_id,
+        ATTR_ALARM_NAME: alarm.name,
+        ATTR_ALARM_TIME: alarm.alarm_time,
+        ATTR_ENABLED: alarm.enabled,
+        ATTR_TARGET_ENTITIES: list(alarm.target_entities),
+        ATTR_TARGET_SERVICES: list(alarm.target_services),
+        "last_triggered_iso": alarm.last_triggered_iso,
+    }

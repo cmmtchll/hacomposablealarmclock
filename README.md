@@ -22,6 +22,7 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 - Workspace-level summary entity:
    - `sensor` for workspace overview (alarm count + compact alarm snapshot list)
 - Service actions to create, update, delete, and trigger alarms
+- Unified action-based service in Devices and Services: `hacomposablealarmclock.alarm_manage`
 - Event emission when alarms are due: `hacomposablealarmclock_alarm_triggered`
 - Diagnostics output with stored alarm definitions
 - Tests using `pytest-homeassistant-custom-component`
@@ -48,6 +49,11 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 5. Add "Composable Alarm Clock" and complete setup.
 
 ## Service actions
+
+- `hacomposablealarmclock.alarm_manage`
+   - Unified action-based service for Devices and Services.
+   - Actions: `create`, `update`, `upsert`, `delete`, `enable`, `disable`, `trigger_now`, `list`.
+   - Supports `dry_run: true` to validate changes without persisting.
 
 - `hacomposablealarmclock.create_alarm`
    - Creates or replaces one virtual alarm.

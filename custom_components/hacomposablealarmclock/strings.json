@@ -65,6 +65,44 @@
     }
   },
   "services": {
+    "alarm_manage": {
+      "name": "Manage alarm",
+      "description": "Manage virtual alarms through one action-based service.",
+      "fields": {
+        "action": {
+          "name": "Action",
+          "description": "Operation to perform: create, update, upsert, delete, enable, disable, trigger_now, or list"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "Alarm identifier for update, upsert, delete, enable, disable, and trigger actions"
+        },
+        "alarm_name": {
+          "name": "Alarm name",
+          "description": "Display name for create, update, or upsert"
+        },
+        "alarm_time": {
+          "name": "Alarm time",
+          "description": "Daily time for create, update, or upsert"
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Whether this alarm should be active"
+        },
+        "target_entities": {
+          "name": "Target entities",
+          "description": "Entities to turn on when alarm triggers"
+        },
+        "target_services": {
+          "name": "Target services",
+          "description": "Services to call when alarm triggers (domain.service)"
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Validate and preview the action without storing or triggering"
+        }
+      }
+    },
     "create_alarm": {
       "name": "Create alarm",
       "description": "Create or replace a virtual alarm clock.",
@@ -147,6 +185,12 @@
     },
     "invalid_list_input": {
       "message": "Expected text or list input."
+    },
+    "invalid_action": {
+      "message": "Action {action} is not supported."
+    },
+    "no_update_fields": {
+      "message": "Update requires at least one field to change."
     }
   }
 }
