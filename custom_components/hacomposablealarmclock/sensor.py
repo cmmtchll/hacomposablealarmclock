@@ -10,7 +10,6 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
 )
-from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -29,6 +28,14 @@ async def async_setup_entry(
     """Set up per-alarm sensors for this entry."""
     manager = entry.runtime_data.manager
     known_alarms: set[str] = set()
+    unloading = False
+
+    @callback
+    def _mark_unloading() -> None:
+        nonlocal unloading
+        unloading = True
+
+    entry.async_on_unload(_mark_unloading)
 
     async_add_entities([WorkspaceOverviewSensor(manager, entry.entry_id)])
 
@@ -42,7 +49,7 @@ async def async_setup_entry(
 
     @callback
     def _async_add_alarm_entities_job(alarm_id: str) -> None:
-        if hass.is_stopping or entry.state is not ConfigEntryState.LOADED:
+        if hass.is_stopping or unloading:
             return
         if manager.async_get_alarm(alarm_id) is None:
             return
@@ -52,7 +59,7 @@ async def async_setup_entry(
         async_add_entities(_create_entities_for_alarm(alarm_id))
 
     def _async_add_alarm_entities(alarm_id: str) -> None:
-        if hass.is_stopping or entry.state is not ConfigEntryState.LOADED:
+        if hass.is_stopping or unloading:
             return
         hass.add_job(_async_add_alarm_entities_job, alarm_id)
 

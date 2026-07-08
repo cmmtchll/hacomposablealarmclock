@@ -189,6 +189,42 @@ async def test_alarm_entities_become_unavailable_after_delete(
     assert workspace.state == "0"
 
 
+async def test_existing_alarm_entities_are_restored_on_reload(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test pre-existing alarms get their entities on integration reload."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "kids_room",
+            "alarm_name": "Kids Room",
+            "alarm_time": "07:30:00",
+            "enabled": True,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.kids_room_next_due") is not None
+    assert hass.states.get("sensor.kids_room_last_triggered") is not None
+    assert hass.states.get("sensor.kids_room_configuration") is not None
+    assert hass.states.get("sensor.kids_room_status") is not None
+    assert hass.states.get("switch.kids_room_enabled") is not None
+    assert hass.states.get("time.kids_room_alarm_time") is not None
+
+
 async def test_alarm_changed_dispatch_from_executor_is_thread_safe(
     hass: HomeAssistant,
     setup_integration,

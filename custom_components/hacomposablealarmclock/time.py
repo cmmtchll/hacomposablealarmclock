@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import time
 
 from homeassistant.components.time import TimeEntity
-from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -23,10 +22,18 @@ async def async_setup_entry(
     """Set up per-alarm time entities for this entry."""
     manager = entry.runtime_data.manager
     known_alarms: set[str] = set()
+    unloading = False
+
+    @callback
+    def _mark_unloading() -> None:
+        nonlocal unloading
+        unloading = True
+
+    entry.async_on_unload(_mark_unloading)
 
     @callback
     def _async_add_alarm_entity_job(alarm_id: str) -> None:
-        if hass.is_stopping or entry.state is not ConfigEntryState.LOADED:
+        if hass.is_stopping or unloading:
             return
         if manager.async_get_alarm(alarm_id) is None:
             return
@@ -36,7 +43,7 @@ async def async_setup_entry(
         async_add_entities([AlarmTimeEntity(manager, alarm_id, entry.entry_id)])
 
     def _async_add_alarm_entity(alarm_id: str) -> None:
-        if hass.is_stopping or entry.state is not ConfigEntryState.LOADED:
+        if hass.is_stopping or unloading:
             return
         hass.add_job(_async_add_alarm_entity_job, alarm_id)
 
