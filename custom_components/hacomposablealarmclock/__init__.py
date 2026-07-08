@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, NoReturn
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.service import ServiceValidationError
 from homeassistant.util import slugify
@@ -22,8 +21,7 @@ from .const import (
     PLATFORMS,
     RuntimeData,
 )
-from .manager import AlarmClock, AlarmClockManager
-
+from .manager import AlarmClock, AlarmClockManager, AlarmValidationError
 
 type ComposableAlarmConfigEntry = ConfigEntry[RuntimeData]
 
@@ -31,6 +29,24 @@ type ComposableAlarmConfigEntry = ConfigEntry[RuntimeData]
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up integration via YAML (unused) and shared services."""
     del config
+
+    def _raise_service_validation_error(error: AlarmValidationError) -> NoReturn:
+        """Convert manager validation errors to translated service errors."""
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key=error.translation_key,
+            translation_placeholders=error.translation_placeholders,
+        ) from error
+
+    def _require_alarm_id(value: Any) -> str:
+        """Normalize and validate an alarm ID from service input."""
+        alarm_id = str(value).strip()
+        if not alarm_id:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_alarm_id",
+            )
+        return alarm_id
 
     async def _require_single_runtime() -> RuntimeData:
         entries: dict[str, RuntimeData] = hass.data.get(DOMAIN, {})
@@ -46,12 +62,9 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         runtime_data = await _require_single_runtime()
 
         alarm_name = str(call.data[ATTR_ALARM_NAME]).strip()
-        alarm_id = str(call.data.get(ATTR_ALARM_ID) or slugify(alarm_name)).strip()
-        if not alarm_id:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_alarm_id",
-            )
+        alarm_id = _require_alarm_id(
+            call.data.get(ATTR_ALARM_ID) or slugify(alarm_name)
+        )
 
         alarm = AlarmClock(
             alarm_id=alarm_id,
@@ -61,12 +74,15 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             target_entities=_coerce_str_list(call.data.get(ATTR_TARGET_ENTITIES)),
             target_services=_coerce_str_list(call.data.get(ATTR_TARGET_SERVICES)),
         )
-        await runtime_data.manager.async_upsert_alarm(alarm)
+        try:
+            await runtime_data.manager.async_upsert_alarm(alarm)
+        except AlarmValidationError as err:
+            _raise_service_validation_error(err)
 
     async def async_handle_update_alarm(call: ServiceCall) -> None:
         """Update an existing virtual alarm clock."""
         runtime_data = await _require_single_runtime()
-        alarm_id = str(call.data[ATTR_ALARM_ID])
+        alarm_id = _require_alarm_id(call.data[ATTR_ALARM_ID])
 
         existing_alarm = runtime_data.manager.async_get_alarm(alarm_id)
         if existing_alarm is None:
@@ -88,17 +104,38 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 call.data.get(ATTR_TARGET_SERVICES, existing_alarm.target_services)
             ),
         )
-        await runtime_data.manager.async_upsert_alarm(alarm)
+        try:
+            await runtime_data.manager.async_upsert_alarm(alarm)
+        except AlarmValidationError as err:
+            _raise_service_validation_error(err)
 
     async def async_handle_delete_alarm(call: ServiceCall) -> None:
         """Delete a virtual alarm clock."""
         runtime_data = await _require_single_runtime()
-        await runtime_data.manager.async_delete_alarm(str(call.data[ATTR_ALARM_ID]))
+        alarm_id = _require_alarm_id(call.data[ATTR_ALARM_ID])
+
+        if runtime_data.manager.async_get_alarm(alarm_id) is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="alarm_not_found",
+                translation_placeholders={"alarm_id": alarm_id},
+            )
+
+        await runtime_data.manager.async_delete_alarm(alarm_id)
 
     async def async_handle_trigger_alarm(call: ServiceCall) -> None:
         """Trigger an alarm immediately."""
         runtime_data = await _require_single_runtime()
-        await runtime_data.manager.async_trigger_alarm_now(str(call.data[ATTR_ALARM_ID]))
+        alarm_id = _require_alarm_id(call.data[ATTR_ALARM_ID])
+
+        if runtime_data.manager.async_get_alarm(alarm_id) is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="alarm_not_found",
+                translation_placeholders={"alarm_id": alarm_id},
+            )
+
+        await runtime_data.manager.async_trigger_alarm_now(alarm_id)
 
     if not hass.services.has_service(DOMAIN, "create_alarm"):
         hass.services.async_register(DOMAIN, "create_alarm", async_handle_create_alarm)
@@ -110,12 +147,19 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         hass.services.async_register(DOMAIN, "delete_alarm", async_handle_delete_alarm)
 
     if not hass.services.has_service(DOMAIN, "trigger_alarm"):
-        hass.services.async_register(DOMAIN, "trigger_alarm", async_handle_trigger_alarm)
+        hass.services.async_register(
+            DOMAIN,
+            "trigger_alarm",
+            async_handle_trigger_alarm,
+        )
 
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEntry) -> bool:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ComposableAlarmConfigEntry,
+) -> bool:
     """Set up Composable Alarm Clock from a config entry."""
     manager = AlarmClockManager(hass=hass, entry_id=entry.entry_id)
     await manager.async_initialize()
@@ -128,7 +172,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEnt
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant,
+    entry: ComposableAlarmConfigEntry,
+) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
@@ -137,7 +184,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEn
     return unload_ok
 
 
-async def async_reload_entry(hass: HomeAssistant, entry: ComposableAlarmConfigEntry) -> None:
+async def async_reload_entry(
+    hass: HomeAssistant,
+    entry: ComposableAlarmConfigEntry,
+) -> None:
     """Reload a config entry."""
     hass.config_entries.async_schedule_reload(entry.entry_id)
 
