@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" role="img" aria-label="Composable Alarm Clock logo">
+  <defs>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f7a8c"/>
+      <stop offset="100%" stop-color="#2f5d62"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="24" y="24" width="272" height="272" rx="56" fill="url(#mark)"/>
+
+  <circle cx="160" cy="176" r="78" fill="#ffffff"/>
+  <circle cx="160" cy="176" r="64" fill="#eaf6f8"/>
+
+  <path d="M160 176V134" stroke="#2f5d62" stroke-width="12" stroke-linecap="round"/>
+  <path d="M160 176H196" stroke="#1f7a8c" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="160" cy="176" r="9" fill="#2f5d62"/>
+
+  <path d="M103 95c0-16 13-29 29-29h12v20h-12c-5 0-9 4-9 9v10h-20V95z" fill="#ffffff"/>
+  <path d="M217 95c0-16-13-29-29-29h-12v20h12c5 0 9 4 9 9v10h20V95z" fill="#ffffff"/>
+
+  <text x="336" y="154" font-family="Segoe UI, Arial, sans-serif" font-size="62" font-weight="700" fill="#173f43">
+    Composable
+  </text>
+  <text x="336" y="220" font-family="Segoe UI, Arial, sans-serif" font-size="62" font-weight="700" fill="#1f7a8c">
+    Alarm Clock
+  </text>
+</svg>

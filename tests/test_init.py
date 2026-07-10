@@ -395,6 +395,156 @@ async def test_alarm_manage_rejects_invalid_action(
     assert exc_info.value.translation_key == "invalid_action"
 
 
+async def test_alarm_manage_enable_disable_and_missing_alarm_errors(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test enable/disable actions and missing-alarm validation paths."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "office",
+            "alarm_name": "Office",
+            "alarm_time": "07:15:00",
+            "enabled": True,
+        },
+        blocking=True,
+    )
+
+    disabled = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {"action": "disable", "alarm_id": "office"},
+        blocking=True,
+        return_response=True,
+    )
+    assert disabled["ok"] is True
+    assert disabled["enabled"] is False
+
+    enabled = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {"action": "enable", "alarm_id": "office"},
+        blocking=True,
+        return_response=True,
+    )
+    assert enabled["ok"] is True
+    assert enabled["enabled"] is True
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {"action": "enable", "alarm_id": "missing"},
+            blocking=True,
+            return_response=True,
+        )
+    assert exc_info.value.translation_key == "alarm_not_found"
+
+
+async def test_alarm_manage_create_and_upsert_validation_paths(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test create/upsert validation branches and upsert-create behavior."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    with pytest.raises(ServiceValidationError) as missing_name:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {
+                "action": "create",
+                "alarm_id": "x",
+                "alarm_name": "",
+                "alarm_time": "07:00:00",
+            },
+            blocking=True,
+            return_response=True,
+        )
+    assert missing_name.value.translation_key == "invalid_alarm_name"
+
+    with pytest.raises(ServiceValidationError) as missing_time:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {
+                "action": "create",
+                "alarm_id": "x",
+                "alarm_name": "X",
+                "alarm_time": "",
+            },
+            blocking=True,
+            return_response=True,
+        )
+    assert missing_time.value.translation_key == "invalid_alarm_time"
+
+    upserted = await hass.services.async_call(
+        DOMAIN,
+        "alarm_manage",
+        {
+            "action": "upsert",
+            "alarm_id": "guest_room",
+            "alarm_name": "Guest Room",
+            "alarm_time": "08:00:00",
+            "enabled": True,
+        },
+        blocking=True,
+        return_response=True,
+    )
+    assert upserted["ok"] is True
+    assert upserted["alarm"]["alarm_id"] == "guest_room"
+
+    with pytest.raises(ServiceValidationError) as invalid_service:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {
+                "action": "upsert",
+                "alarm_id": "guest_room",
+                "target_services": ["not_a_service"],
+            },
+            blocking=True,
+            return_response=True,
+        )
+    assert invalid_service.value.translation_key == "invalid_target_service"
+
+
+async def test_alarm_manage_update_missing_alarm_rejected(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test update action rejects unknown alarms."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "alarm_manage",
+            {
+                "action": "update",
+                "alarm_id": "missing",
+                "alarm_name": "Missing",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "alarm_not_found"
+
+
 async def test_alarm_manage_requires_config_entry_id_for_multi_entry(
     hass: HomeAssistant,
 ) -> None:
