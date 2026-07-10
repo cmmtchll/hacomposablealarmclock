@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from custom_components.hacomposablealarmclock.const import (
@@ -144,11 +146,11 @@ async def test_alarm_config_and_status_attributes(
     assert status_state.attributes["target_services_count"] == 1
 
 
-async def test_alarm_entities_become_unavailable_after_delete(
+async def test_alarm_entities_are_removed_after_delete(
     hass: HomeAssistant,
     setup_integration,
 ) -> None:
-    """Test per-alarm entities become unavailable after deleting the alarm."""
+    """Test per-alarm entities and device are removed after deleting the alarm."""
     entry = setup_integration
 
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -176,6 +178,7 @@ async def test_alarm_entities_become_unavailable_after_delete(
     await hass.async_block_till_done()
 
     for entity_id in (
+        "button.kids_room_trigger_now",
         "sensor.kids_room_next_due",
         "sensor.kids_room_last_triggered",
         "sensor.kids_room_configuration",
@@ -183,13 +186,78 @@ async def test_alarm_entities_become_unavailable_after_delete(
         "switch.kids_room_enabled",
         "time.kids_room_alarm_time",
     ):
-        state = hass.states.get(entity_id)
-        assert state is not None
-        assert state.state == "unavailable"
+        assert hass.states.get(entity_id) is None
+
+    entity_registry = er.async_get(hass)
+    for entity_domain, suffix in (
+        ("button", "trigger_now"),
+        ("sensor", "next_due"),
+        ("sensor", "last_triggered"),
+        ("sensor", "configuration"),
+        ("sensor", "status"),
+        ("switch", "enabled"),
+        ("time", "alarm_time"),
+    ):
+        assert (
+            entity_registry.async_get_entity_id(
+                entity_domain,
+                DOMAIN,
+                f"{entry.entry_id}_kids_room_{suffix}",
+            )
+            is None
+        )
+
+    device_registry = dr.async_get(hass)
+    assert device_registry.async_get_device(identifiers={(DOMAIN, "kids_room")}) is None
 
     workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
     assert workspace is not None
     assert workspace.state == "0"
+
+
+async def test_stale_alarm_entities_are_removed_on_setup(
+    hass: HomeAssistant,
+    setup_integration,
+) -> None:
+    """Test setup reconciles stale registry entries for deleted alarms."""
+    entry = setup_integration
+    device_registry = dr.async_get(hass)
+    stale_device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "stale_alarm")},
+    )
+    entity_registry = er.async_get(hass)
+    entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{entry.entry_id}_stale_alarm_next_due",
+        config_entry=entry,
+        device_id=stale_device.id,
+        suggested_object_id="stale_alarm_next_due",
+    )
+
+    assert entity_registry.async_get_entity_id(
+        "sensor",
+        DOMAIN,
+        f"{entry.entry_id}_stale_alarm_next_due",
+    )
+    assert device_registry.async_get_device(identifiers={(DOMAIN, "stale_alarm")})
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor",
+            DOMAIN,
+            f"{entry.entry_id}_stale_alarm_next_due",
+        )
+        is None
+    )
+    assert (
+        device_registry.async_get_device(identifiers={(DOMAIN, "stale_alarm")})
+        is None
+    )
 
 
 async def test_existing_alarm_entities_are_restored_on_reload(

@@ -96,7 +96,7 @@ Setup guide:
 - `hacomposablealarmclock.update_alarm`
    - Updates an existing virtual alarm.
 - `hacomposablealarmclock.delete_alarm`
-   - Deletes a virtual alarm.
+   - Deletes a virtual alarm and removes its per-alarm entities and device.
 - `hacomposablealarmclock.trigger_alarm`
    - Triggers a virtual alarm immediately.
 
@@ -116,6 +116,8 @@ Service inputs are validated before alarms are stored or triggered:
 - Alarm times must be valid daily times in `HH:MM` or `HH:MM:SS` format.
 - Target services must use `domain.service` format.
 - Update, delete, and trigger actions return a translated validation error when the alarm does not exist.
+
+On setup, the integration reconciles stored alarm definitions with Home Assistant's entity and device registries. Stale per-alarm entities or devices left behind by earlier versions or interrupted deletes are pruned automatically when the integration loads.
 
 ## Bronze/Silver/Gold/Platinum notes
 
