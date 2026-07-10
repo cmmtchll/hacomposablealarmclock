@@ -14,7 +14,7 @@ from .manager import AlarmClockManager
 class ComposableAlarmEntity(Entity):
     """Base entity for Composable Alarm Clock entities."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
     _attr_should_poll = False
 
     def __init__(

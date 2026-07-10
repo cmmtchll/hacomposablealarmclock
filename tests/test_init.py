@@ -7,6 +7,7 @@ from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
@@ -414,7 +415,10 @@ async def test_alarm_manage_requires_config_entry_id_for_multi_entry(
     entry_2.add_to_hass(hass)
 
     assert await hass.config_entries.async_setup(entry_1.entry_id)
-    assert await hass.config_entries.async_setup(entry_2.entry_id)
+    if entry_2.state is ConfigEntryState.NOT_LOADED:
+        assert await hass.config_entries.async_setup(entry_2.entry_id)
+    else:
+        assert entry_2.state is ConfigEntryState.LOADED
     await hass.async_block_till_done()
 
     with pytest.raises(ServiceValidationError) as exc_info:

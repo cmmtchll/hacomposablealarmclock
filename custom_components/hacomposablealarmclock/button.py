@@ -62,6 +62,7 @@ class AlarmTriggerNowButton(ComposableAlarmEntity, ButtonEntity):
         """Initialize button entity."""
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_trigger_now"
+        self._attr_name = f"{alarm_id}_trigger_now"
 
     async def async_press(self) -> None:
         """Trigger the alarm immediately."""

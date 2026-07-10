@@ -63,6 +63,7 @@ class AlarmTimeEntity(ComposableAlarmEntity, TimeEntity):
     def __init__(self, manager, alarm_id: str, entry_id: str) -> None:
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_alarm_time"
+        self._attr_name = f"{alarm_id}_alarm_time"
 
     @property
     def native_value(self) -> time | None:

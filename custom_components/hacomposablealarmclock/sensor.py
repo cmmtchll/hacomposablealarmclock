@@ -97,6 +97,7 @@ class NextDueSensor(ComposableAlarmEntity, SensorEntity):
     ) -> None:
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_next_due"
+        self._attr_name = f"{alarm_id}_next_due"
 
     @property
     def native_value(self) -> datetime | None:
@@ -108,7 +109,7 @@ class WorkspaceOverviewSensor(SensorEntity):
     """Expose top-level overview for all configured alarms."""
 
     _attr_translation_key = "workspace_overview"
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
     _attr_should_poll = False
 
     def __init__(self, manager, entry_id: str) -> None:
@@ -116,6 +117,7 @@ class WorkspaceOverviewSensor(SensorEntity):
         self._manager = manager
         self._entry_id = entry_id
         self._attr_unique_id = f"{entry_id}_workspace_overview"
+        self._attr_name = "alarm_workspace_workspace_overview"
 
     @property
     def native_value(self) -> int:
@@ -213,6 +215,7 @@ class AlarmStatusSensor(ComposableAlarmEntity, SensorEntity):
     ) -> None:
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_status"
+        self._attr_name = f"{alarm_id}_status"
 
     @property
     def native_value(self) -> str | None:
@@ -264,6 +267,7 @@ class LastTriggeredSensor(ComposableAlarmEntity, SensorEntity):
     ) -> None:
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_last_triggered"
+        self._attr_name = f"{alarm_id}_last_triggered"
 
     @property
     def native_value(self) -> datetime | None:
@@ -289,6 +293,7 @@ class AlarmConfigSensor(ComposableAlarmEntity, SensorEntity):
     ) -> None:
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_configuration"
+        self._attr_name = f"{alarm_id}_configuration"
 
     @property
     def native_value(self) -> int | None:
