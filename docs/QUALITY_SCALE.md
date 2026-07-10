@@ -17,6 +17,7 @@ This document maps repository implementation to Home Assistant Quality Scale exp
 - Flow-first options UX for alarm CRUD from the integration page.
 - Runtime data in `ConfigEntry.runtime_data`.
 - Config entry unload/reload behavior.
+- Startup reconciliation removes stale per-alarm entities and devices that no longer exist in stored alarm configuration.
 - Logging for availability transitions.
 - Diagnostics with secret redaction.
 - Repairs issue and fix flow for enabled alarms without any targets.

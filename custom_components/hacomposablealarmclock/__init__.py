@@ -7,7 +7,18 @@ from typing import Any, NoReturn
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import (
+    device_registry as dr,
+)
+from homeassistant.helpers import (
+    entity_platform,
+)
+from homeassistant.helpers import (
+    entity_registry as er,
+)
+from homeassistant.helpers import (
+    issue_registry as ir,
+)
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.service import ServiceValidationError
 from homeassistant.util import slugify
@@ -32,6 +43,16 @@ from .const import (
 from .manager import AlarmClock, AlarmClockManager, AlarmValidationError
 
 type ComposableAlarmConfigEntry = ConfigEntry[RuntimeData]
+
+_ALARM_ENTITY_UNIQUE_ID_SUFFIXES: tuple[tuple[str, str], ...] = (
+    ("button", "trigger_now"),
+    ("sensor", "next_due"),
+    ("sensor", "last_triggered"),
+    ("sensor", "configuration"),
+    ("sensor", "status"),
+    ("switch", "enabled"),
+    ("time", "alarm_time"),
+)
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -353,20 +374,20 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     async def _sync_repairs_on_alarm_change(_alarm_id: str) -> None:
         await _async_sync_repairs_issues(hass)
 
+    async def _sync_removed_alarm(alarm_id: str) -> None:
+        await _async_sync_repairs_issues(hass)
+        await _async_reconcile_alarm_registries(hass, removed_alarm_id=alarm_id)
+
     if not hass.data.get(f"{DOMAIN}_repairs_dispatcher_setup"):
         unsub_changed = async_dispatcher_connect(
             hass,
             SIGNAL_ALARM_CHANGED,
-            lambda alarm_id: hass.async_create_task(
-                _sync_repairs_on_alarm_change(alarm_id)
-            ),
+            lambda alarm_id: hass.add_job(_sync_repairs_on_alarm_change, alarm_id),
         )
         unsub_removed = async_dispatcher_connect(
             hass,
             SIGNAL_ALARM_REMOVED,
-            lambda alarm_id: hass.async_create_task(
-                _sync_repairs_on_alarm_change(alarm_id)
-            ),
+            lambda alarm_id: hass.add_job(_sync_removed_alarm, alarm_id),
         )
         hass.data[f"{DOMAIN}_repairs_dispatcher_setup"] = [unsub_changed, unsub_removed]
 
@@ -386,6 +407,7 @@ async def async_setup_entry(
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    await _async_reconcile_alarm_registries(hass, entry_id=entry.entry_id)
     await _async_sync_repairs_issues(hass)
     return True
 
@@ -409,6 +431,105 @@ async def async_reload_entry(
 ) -> None:
     """Reload a config entry."""
     hass.config_entries.async_schedule_reload(entry.entry_id)
+
+
+async def _async_reconcile_alarm_registries(
+    hass: HomeAssistant,
+    *,
+    entry_id: str | None = None,
+    removed_alarm_id: str | None = None,
+) -> None:
+    """Remove stale per-alarm entities and devices from Home Assistant registries."""
+    runtime_data_by_entry = hass.data.get(DOMAIN, {})
+    entity_registry = er.async_get(hass)
+
+    entry_ids = [entry_id] if entry_id is not None else list(runtime_data_by_entry)
+    stale_alarm_ids: set[str] = set()
+
+    for current_entry_id in entry_ids:
+        runtime_data = runtime_data_by_entry.get(current_entry_id)
+        if runtime_data is None:
+            continue
+
+        live_alarm_ids = {
+            alarm.alarm_id for alarm in runtime_data.manager.async_list_alarms()
+        }
+        candidate_alarm_ids = (
+            {removed_alarm_id}
+            if removed_alarm_id is not None
+            else _registered_alarm_ids_for_entry(entity_registry, current_entry_id)
+        )
+
+        for alarm_id in candidate_alarm_ids - live_alarm_ids:
+            stale_alarm_ids.add(alarm_id)
+            for entity_domain, suffix in _ALARM_ENTITY_UNIQUE_ID_SUFFIXES:
+                entity_id = entity_registry.async_get_entity_id(
+                    entity_domain,
+                    DOMAIN,
+                    f"{current_entry_id}_{alarm_id}_{suffix}",
+                )
+                if entity_id is None:
+                    continue
+                await _async_remove_live_entity(hass, entity_id)
+                entity_registry.async_remove(entity_id)
+
+    device_registry = dr.async_get(hass)
+    for alarm_id in stale_alarm_ids:
+        if any(
+            runtime_data.manager.async_get_alarm(alarm_id) is not None
+            for runtime_data in runtime_data_by_entry.values()
+        ):
+            continue
+
+        device = device_registry.async_get_device(identifiers={(DOMAIN, alarm_id)})
+        if device is not None and not er.async_entries_for_device(
+            entity_registry,
+            device.id,
+        ):
+            device_registry.async_remove_device(device.id)
+
+
+def _registered_alarm_ids_for_entry(
+    entity_registry: er.EntityRegistry,
+    entry_id: str,
+) -> set[str]:
+    """Return alarm IDs represented by this config entry's entity registry rows."""
+    alarm_ids: set[str] = set()
+    prefix = f"{entry_id}_"
+
+    for entity_entry in er.async_entries_for_config_entry(entity_registry, entry_id):
+        if entity_entry.platform != DOMAIN or not entity_entry.unique_id.startswith(
+            prefix
+        ):
+            continue
+        alarm_id = _alarm_id_from_unique_id(entity_entry.unique_id, entry_id)
+        if alarm_id is not None:
+            alarm_ids.add(alarm_id)
+
+    return alarm_ids
+
+
+def _alarm_id_from_unique_id(unique_id: str, entry_id: str) -> str | None:
+    """Extract an alarm ID from a per-alarm entity unique ID."""
+    prefix = f"{entry_id}_"
+    if not unique_id.startswith(prefix):
+        return None
+
+    alarm_id_with_suffix = unique_id.removeprefix(prefix)
+    for _entity_domain, suffix in _ALARM_ENTITY_UNIQUE_ID_SUFFIXES:
+        suffix_marker = f"_{suffix}"
+        if alarm_id_with_suffix.endswith(suffix_marker):
+            return alarm_id_with_suffix[: -len(suffix_marker)]
+    return None
+
+
+async def _async_remove_live_entity(hass: HomeAssistant, entity_id: str) -> None:
+    """Remove an active entity from its loaded platform before registry cleanup."""
+    for platform in entity_platform.async_get_platforms(hass, DOMAIN):
+        if entity_id not in platform.entities:
+            continue
+        await platform.async_remove_entity(entity_id)
+        return
 
 
 def _coerce_str_list(value: Any) -> list[str]:
