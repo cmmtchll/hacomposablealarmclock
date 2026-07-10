@@ -10,6 +10,7 @@ from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import ServiceNotFound
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.storage import Store
@@ -229,24 +230,38 @@ class AlarmClockManager:
         )
 
         if alarm.target_entities:
-            await self._hass.services.async_call(
-                "homeassistant",
-                "turn_on",
-                {"entity_id": alarm.target_entities},
-                blocking=False,
-            )
+            try:
+                await self._hass.services.async_call(
+                    "homeassistant",
+                    "turn_on",
+                    {"entity_id": alarm.target_entities},
+                    blocking=False,
+                )
+            except ServiceNotFound:
+                LOGGER.debug(
+                    "Skipping target entity turn_on for alarm %s because "
+                    "homeassistant.turn_on is unavailable",
+                    alarm.alarm_id,
+                )
 
         for service_call in alarm.target_services:
             domain, service = _split_service_call(service_call)
-            await self._hass.services.async_call(
-                domain,
-                service,
-                {
-                    ATTR_ALARM_ID: alarm.alarm_id,
-                    ATTR_ALARM_NAME: alarm.name,
-                },
-                blocking=False,
-            )
+            try:
+                await self._hass.services.async_call(
+                    domain,
+                    service,
+                    {
+                        ATTR_ALARM_ID: alarm.alarm_id,
+                        ATTR_ALARM_NAME: alarm.name,
+                    },
+                    blocking=False,
+                )
+            except ServiceNotFound:
+                LOGGER.debug(
+                    "Skipping unavailable target service %s for alarm %s",
+                    service_call,
+                    alarm.alarm_id,
+                )
 
         async_dispatcher_send(self._hass, SIGNAL_ALARM_CHANGED, alarm.alarm_id)
 

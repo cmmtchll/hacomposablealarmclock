@@ -29,7 +29,12 @@ This document maps repository implementation to Home Assistant Quality Scale exp
 
 - Discovery and discovery update flow.
 - Brand assets are prepared locally and pending publication in `home-assistant/brands`.
-- Some advanced lifecycle rules not relevant to a single-endpoint MVP.
+
+## Dynamic device modeling evidence
+
+- Each virtual alarm is represented as its own device with per-alarm entities (button, sensors, switch, and time entity).
+- Registry reconciliation removes stale per-alarm entities and devices when alarms are deleted or no longer exist.
+- Tests cover per-alarm entity creation, deletion cleanup, stale registry cleanup, and cross-entry scoping behavior.
 
 See the authoritative status file:
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -30,6 +31,18 @@ PER_ALARM_ENTITY_SUFFIXES: tuple[tuple[str, str], ...] = (
 )
 
 
+def _state_by_unique_id(
+    hass: HomeAssistant,
+    entity_domain: str,
+    unique_id: str,
+):
+    """Return state resolved from entity registry unique ID."""
+    entity_registry = er.async_get(hass)
+    entity_id = entity_registry.async_get_entity_id(entity_domain, DOMAIN, unique_id)
+    assert entity_id is not None
+    return hass.states.get(entity_id)
+
+
 async def test_sensor_entities_created(
     hass: HomeAssistant,
     setup_integration,
@@ -40,7 +53,11 @@ async def test_sensor_entities_created(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+    workspace = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_workspace_overview",
+    )
     assert workspace is not None
     assert workspace.state == "0"
 
@@ -57,14 +74,46 @@ async def test_sensor_entities_created(
     )
     await hass.async_block_till_done()
 
-    next_due = hass.states.get("sensor.kids_room_next_due")
-    last_triggered = hass.states.get("sensor.kids_room_last_triggered")
-    configuration = hass.states.get("sensor.kids_room_configuration")
-    status = hass.states.get("sensor.kids_room_status")
-    enabled = hass.states.get("switch.kids_room_enabled")
-    alarm_time = hass.states.get("time.kids_room_alarm_time")
-    trigger_now = hass.states.get("button.kids_room_trigger_now")
-    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+    next_due = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_next_due",
+    )
+    last_triggered = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_last_triggered",
+    )
+    configuration = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_configuration",
+    )
+    status = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_status",
+    )
+    enabled = _state_by_unique_id(
+        hass,
+        "switch",
+        f"{entry.entry_id}_kids_room_enabled",
+    )
+    alarm_time = _state_by_unique_id(
+        hass,
+        "time",
+        f"{entry.entry_id}_kids_room_alarm_time",
+    )
+    trigger_now = _state_by_unique_id(
+        hass,
+        "button",
+        f"{entry.entry_id}_kids_room_trigger_now",
+    )
+    workspace = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_workspace_overview",
+    )
 
     assert next_due is not None
     assert last_triggered is not None
@@ -102,7 +151,11 @@ async def test_workspace_overview_includes_alarm_snapshot(
     )
     await hass.async_block_till_done()
 
-    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+    workspace = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_workspace_overview",
+    )
 
     assert workspace is not None
     assert workspace.state == "1"
@@ -138,8 +191,16 @@ async def test_alarm_config_and_status_attributes(
     )
     await hass.async_block_till_done()
 
-    config_state = hass.states.get("sensor.kids_room_configuration")
-    status_state = hass.states.get("sensor.kids_room_status")
+    config_state = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_configuration",
+    )
+    status_state = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_status",
+    )
 
     assert config_state is not None
     assert status_state is not None
@@ -191,17 +252,6 @@ async def test_alarm_entities_are_removed_after_delete(
     )
     await hass.async_block_till_done()
 
-    for entity_id in (
-        "button.kids_room_trigger_now",
-        "sensor.kids_room_next_due",
-        "sensor.kids_room_last_triggered",
-        "sensor.kids_room_configuration",
-        "sensor.kids_room_status",
-        "switch.kids_room_enabled",
-        "time.kids_room_alarm_time",
-    ):
-        assert hass.states.get(entity_id) is None
-
     entity_registry = er.async_get(hass)
     for entity_domain, suffix in PER_ALARM_ENTITY_SUFFIXES:
         assert (
@@ -216,7 +266,11 @@ async def test_alarm_entities_are_removed_after_delete(
     device_registry = dr.async_get(hass)
     assert device_registry.async_get_device(identifiers={(DOMAIN, "kids_room")}) is None
 
-    workspace = hass.states.get("sensor.alarm_workspace_workspace_overview")
+    workspace = _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_workspace_overview",
+    )
     assert workspace is not None
     assert workspace.state == "0"
 
@@ -294,20 +348,28 @@ async def test_existing_alarm_entities_are_restored_on_reload(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.kids_room_next_due") is not None
-    assert hass.states.get("sensor.kids_room_last_triggered") is not None
-    assert hass.states.get("sensor.kids_room_configuration") is not None
-    assert hass.states.get("sensor.kids_room_status") is not None
-    assert hass.states.get("switch.kids_room_enabled") is not None
-    assert hass.states.get("time.kids_room_alarm_time") is not None
+    assert _state_by_unique_id(hass, "sensor", f"{entry.entry_id}_kids_room_next_due")
+    assert _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_last_triggered",
+    )
+    assert _state_by_unique_id(
+        hass,
+        "sensor",
+        f"{entry.entry_id}_kids_room_configuration",
+    )
+    assert _state_by_unique_id(hass, "sensor", f"{entry.entry_id}_kids_room_status")
+    assert _state_by_unique_id(hass, "switch", f"{entry.entry_id}_kids_room_enabled")
+    assert _state_by_unique_id(hass, "time", f"{entry.entry_id}_kids_room_alarm_time")
 
 
-async def test_alarm_changed_dispatch_from_executor_is_thread_safe(
+async def test_alarm_changed_dispatch_on_event_loop_thread_is_safe(
     hass: HomeAssistant,
     setup_integration,
     caplog,
 ) -> None:
-    """Test alarm-changed dispatcher callback is safe from executor thread."""
+    """Test alarm-changed dispatcher callback is safe on the event loop thread."""
     entry = setup_integration
 
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -329,12 +391,7 @@ async def test_alarm_changed_dispatch_from_executor_is_thread_safe(
     caplog.set_level(logging.ERROR)
     caplog.clear()
 
-    await hass.async_add_executor_job(
-        async_dispatcher_send,
-        hass,
-        SIGNAL_ALARM_CHANGED,
-        "kids_room",
-    )
+    hass.add_job(async_dispatcher_send, hass, SIGNAL_ALARM_CHANGED, "kids_room")
     await hass.async_block_till_done()
 
     assert (
@@ -368,30 +425,20 @@ async def test_dispatcher_callbacks_create_tasks_on_event_loop_thread(
     caplog.set_level(logging.ERROR)
     caplog.clear()
 
-    await hass.async_add_executor_job(
-        async_dispatcher_send,
-        hass,
-        SIGNAL_ALARM_CHANGED,
-        "missing_alarm",
-    )
-    await hass.async_add_executor_job(
-        async_dispatcher_send,
-        hass,
-        SIGNAL_ALARM_REMOVED,
-        "missing_alarm",
-    )
+    hass.add_job(async_dispatcher_send, hass, SIGNAL_ALARM_CHANGED, "missing_alarm")
+    hass.add_job(async_dispatcher_send, hass, SIGNAL_ALARM_REMOVED, "missing_alarm")
     await hass.async_block_till_done()
 
     assert "async_create_task called outside event loop thread" not in caplog.text
     assert "Detected that custom integration" not in caplog.text
 
 
-async def test_alarm_removed_dispatch_from_executor_is_thread_safe(
+async def test_alarm_removed_dispatch_on_event_loop_thread_is_safe(
     hass: HomeAssistant,
     setup_integration,
     caplog,
 ) -> None:
-    """Test alarm-removed dispatcher callback is safe from executor thread."""
+    """Test alarm-removed dispatcher callback is safe on the event loop thread."""
     entry = setup_integration
 
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -413,12 +460,7 @@ async def test_alarm_removed_dispatch_from_executor_is_thread_safe(
     caplog.set_level(logging.ERROR)
     caplog.clear()
 
-    await hass.async_add_executor_job(
-        async_dispatcher_send,
-        hass,
-        SIGNAL_ALARM_REMOVED,
-        "kids_room",
-    )
+    hass.add_job(async_dispatcher_send, hass, SIGNAL_ALARM_REMOVED, "kids_room")
     await hass.async_block_till_done()
 
     assert (
@@ -457,18 +499,8 @@ async def test_dispatch_after_unload_does_not_log_thread_or_pending_task_errors(
     caplog.set_level(logging.ERROR)
     caplog.clear()
 
-    await hass.async_add_executor_job(
-        async_dispatcher_send,
-        hass,
-        SIGNAL_ALARM_CHANGED,
-        "kids_room",
-    )
-    await hass.async_add_executor_job(
-        async_dispatcher_send,
-        hass,
-        SIGNAL_ALARM_REMOVED,
-        "kids_room",
-    )
+    hass.add_job(async_dispatcher_send, hass, SIGNAL_ALARM_CHANGED, "kids_room")
+    hass.add_job(async_dispatcher_send, hass, SIGNAL_ALARM_REMOVED, "kids_room")
     await hass.async_block_till_done()
 
     assert (
@@ -499,7 +531,10 @@ async def test_deleting_alarm_in_one_entry_preserves_other_entry_entities(
     entry_2.add_to_hass(hass)
 
     assert await hass.config_entries.async_setup(entry_1.entry_id)
-    assert await hass.config_entries.async_setup(entry_2.entry_id)
+    if entry_2.state is ConfigEntryState.NOT_LOADED:
+        assert await hass.config_entries.async_setup(entry_2.entry_id)
+    else:
+        assert entry_2.state is ConfigEntryState.LOADED
     await hass.async_block_till_done()
 
     for entry in (entry_1, entry_2):

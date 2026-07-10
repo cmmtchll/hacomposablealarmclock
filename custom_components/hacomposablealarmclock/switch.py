@@ -61,6 +61,7 @@ class AlarmEnabledSwitch(ComposableAlarmEntity, SwitchEntity):
     def __init__(self, manager, alarm_id: str, entry_id: str) -> None:
         super().__init__(manager, alarm_id, entry_id)
         self._attr_unique_id = f"{entry_id}_{alarm_id}_enabled"
+        self._attr_name = f"{alarm_id}_enabled"
 
     @property
     def is_on(self) -> bool:

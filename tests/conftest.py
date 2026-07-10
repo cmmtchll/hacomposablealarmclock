@@ -10,6 +10,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.hacomposablealarmclock.const import DOMAIN
 
 
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
+    """Enable loading integrations from the local custom_components path."""
+
+
 @pytest.fixture
 def mock_config_entry() -> MockConfigEntry:
     """Return a mock config entry."""

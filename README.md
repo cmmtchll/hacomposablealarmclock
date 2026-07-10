@@ -134,10 +134,16 @@ This scaffold includes a practical implementation for many rules and records exe
 - `docs/QUALITY_SCALE.md`
 - `branding/README.md`
 
+Local branding directory layout is included in this repository under:
+
+- `brands/custom_integrations/hacomposablealarmclock/`
+
+To use local branding in Home Assistant before upstream publication, copy the repository `brands` folder into your Home Assistant config directory.
+
 ## Known limitations in initial scaffold
 
 - Discovery protocols are not yet implemented.
-- Brand images are included locally but not yet published to `home-assistant/brands`.
+- Brand images are included locally and can be used via the local `brands` folder, but are not yet published to `home-assistant/brands`.
 
 ## License
 

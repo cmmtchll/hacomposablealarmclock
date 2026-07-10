@@ -5,6 +5,17 @@ This folder contains source branding assets for the integration.
 - `icon.svg`: square mark intended for integration icon usage.
 - `logo.svg`: wider wordmark intended for documentation and release notes.
 
+## Local Home Assistant branding layout
+
+For local icon/logo resolution in Home Assistant, use the brands directory layout:
+
+- `brands/custom_integrations/hacomposablealarmclock/icon.svg`
+- `brands/custom_integrations/hacomposablealarmclock/logo.svg`
+
+When testing locally, copy the repository `brands` folder into your HA config root so the final path is:
+
+- `<ha_config>/brands/custom_integrations/hacomposablealarmclock/`
+
 ## Home Assistant Brands Submission
 
 Home Assistant integration branding is served from the separate `home-assistant/brands` repository.
