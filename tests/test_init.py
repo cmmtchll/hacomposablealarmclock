@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,7 +11,11 @@ from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.service import ServiceValidationError
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.hacomposablealarmclock import manager as manager_module
 from custom_components.hacomposablealarmclock.const import DOMAIN, EVENT_ALARM_TRIGGERED
@@ -72,6 +77,61 @@ async def test_create_alarm_and_trigger_event(
 
     assert events
     assert events[-1]["alarm_id"] == "kids_room"
+
+
+async def test_scheduled_alarm_fires_once_and_reschedules(
+    hass: HomeAssistant,
+    setup_integration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test scheduled callbacks create loop tasks, fire events, and reschedule."""
+    entry = setup_integration
+    first_due = dt_util.utcnow() + timedelta(seconds=5)
+    second_due = first_due + timedelta(days=1)
+    due_times = [first_due, second_due]
+
+    def _next_due_datetime_utc(_alarm_time: str):
+        return due_times.pop(0) if due_times else second_due
+
+    monkeypatch.setattr(
+        manager_module,
+        "_next_due_datetime_utc",
+        _next_due_datetime_utc,
+    )
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    events: list[dict] = []
+    unsub = hass.bus.async_listen(
+        EVENT_ALARM_TRIGGERED,
+        lambda event: events.append(dict(event.data)),
+    )
+
+    await hass.services.async_call(
+        DOMAIN,
+        "create_alarm",
+        {
+            "alarm_id": "scheduled",
+            "alarm_name": "Scheduled",
+            "alarm_time": "07:00:00",
+            "enabled": True,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    async_fire_time_changed(hass, first_due + timedelta(seconds=1))
+    await hass.async_block_till_done()
+
+    unsub()
+    manager = hass.data[DOMAIN][entry.entry_id].manager
+    alarm = manager.async_get_alarm("scheduled")
+
+    assert len(events) == 1
+    assert events[0]["alarm_id"] == "scheduled"
+    assert alarm is not None
+    assert alarm.last_triggered_iso is not None
 
 
 async def test_create_alarm_rejects_invalid_time(

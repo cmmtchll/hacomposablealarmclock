@@ -3,16 +3,30 @@
 from __future__ import annotations
 
 import logging
+import threading
 
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from pytest import MonkeyPatch
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.hacomposablealarmclock.const import (
     DOMAIN,
     SIGNAL_ALARM_CHANGED,
     SIGNAL_ALARM_REMOVED,
+)
+
+PER_ALARM_ENTITY_SUFFIXES: tuple[tuple[str, str], ...] = (
+    ("button", "trigger_now"),
+    ("sensor", "next_due"),
+    ("sensor", "last_triggered"),
+    ("sensor", "configuration"),
+    ("sensor", "status"),
+    ("switch", "enabled"),
+    ("time", "alarm_time"),
 )
 
 
@@ -189,15 +203,7 @@ async def test_alarm_entities_are_removed_after_delete(
         assert hass.states.get(entity_id) is None
 
     entity_registry = er.async_get(hass)
-    for entity_domain, suffix in (
-        ("button", "trigger_now"),
-        ("sensor", "next_due"),
-        ("sensor", "last_triggered"),
-        ("sensor", "configuration"),
-        ("sensor", "status"),
-        ("switch", "enabled"),
-        ("time", "alarm_time"),
-    ):
+    for entity_domain, suffix in PER_ALARM_ENTITY_SUFFIXES:
         assert (
             entity_registry.async_get_entity_id(
                 entity_domain,
@@ -338,6 +344,48 @@ async def test_alarm_changed_dispatch_from_executor_is_thread_safe(
     assert "is not the running loop" not in caplog.text
 
 
+async def test_dispatcher_callbacks_create_tasks_on_event_loop_thread(
+    hass: HomeAssistant,
+    setup_integration,
+    monkeypatch: MonkeyPatch,
+    caplog,
+) -> None:
+    """Test global dispatcher callbacks never create tasks from executor threads."""
+    entry = setup_integration
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    loop_thread_id = threading.get_ident()
+    original_async_create_task = hass.async_create_task
+
+    def _guarded_async_create_task(*args, **kwargs):
+        if threading.get_ident() != loop_thread_id:
+            raise AssertionError("async_create_task called outside event loop thread")
+        return original_async_create_task(*args, **kwargs)
+
+    monkeypatch.setattr(hass, "async_create_task", _guarded_async_create_task)
+    caplog.set_level(logging.ERROR)
+    caplog.clear()
+
+    await hass.async_add_executor_job(
+        async_dispatcher_send,
+        hass,
+        SIGNAL_ALARM_CHANGED,
+        "missing_alarm",
+    )
+    await hass.async_add_executor_job(
+        async_dispatcher_send,
+        hass,
+        SIGNAL_ALARM_REMOVED,
+        "missing_alarm",
+    )
+    await hass.async_block_till_done()
+
+    assert "async_create_task called outside event loop thread" not in caplog.text
+    assert "Detected that custom integration" not in caplog.text
+
+
 async def test_alarm_removed_dispatch_from_executor_is_thread_safe(
     hass: HomeAssistant,
     setup_integration,
@@ -429,3 +477,69 @@ async def test_dispatch_after_unload_does_not_log_thread_or_pending_task_errors(
     )
     assert "Task was destroyed but it is pending" not in caplog.text
     assert "is not the running loop" not in caplog.text
+
+
+async def test_deleting_alarm_in_one_entry_preserves_other_entry_entities(
+    hass: HomeAssistant,
+) -> None:
+    """Test registry cleanup is scoped when two entries use the same alarm ID."""
+    entry_1 = MockConfigEntry(
+        domain=DOMAIN,
+        title="Alarm Workspace 1",
+        unique_id=f"{DOMAIN}_1",
+        data={CONF_NAME: "Alarm Workspace 1"},
+    )
+    entry_2 = MockConfigEntry(
+        domain=DOMAIN,
+        title="Alarm Workspace 2",
+        unique_id=f"{DOMAIN}_2",
+        data={CONF_NAME: "Alarm Workspace 2"},
+    )
+    entry_1.add_to_hass(hass)
+    entry_2.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry_1.entry_id)
+    assert await hass.config_entries.async_setup(entry_2.entry_id)
+    await hass.async_block_till_done()
+
+    for entry in (entry_1, entry_2):
+        await hass.services.async_call(
+            DOMAIN,
+            "create_alarm",
+            {
+                "config_entry_id": entry.entry_id,
+                "alarm_id": "shared_alarm",
+                "alarm_name": "Shared Alarm",
+                "alarm_time": "07:00:00",
+                "enabled": True,
+            },
+            blocking=True,
+        )
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "delete_alarm",
+        {"config_entry_id": entry_1.entry_id, "alarm_id": "shared_alarm"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    entity_registry = er.async_get(hass)
+    for entity_domain, suffix in PER_ALARM_ENTITY_SUFFIXES:
+        assert (
+            entity_registry.async_get_entity_id(
+                entity_domain,
+                DOMAIN,
+                f"{entry_1.entry_id}_shared_alarm_{suffix}",
+            )
+            is None
+        )
+        assert entity_registry.async_get_entity_id(
+            entity_domain,
+            DOMAIN,
+            f"{entry_2.entry_id}_shared_alarm_{suffix}",
+        )
+
+    device_registry = dr.async_get(hass)
+    assert device_registry.async_get_device(identifiers={(DOMAIN, "shared_alarm")})
