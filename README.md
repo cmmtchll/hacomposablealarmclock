@@ -1,4 +1,16 @@
-# Composable Alarm Clock Home Assistant Integration
+# ![Composable Alarm Clock](branding/logo.svg)
+
+<div align="center">
+
+[![Home Assistant Integration](branding/icon.svg)](https://www.home-assistant.io/)
+
+*Flexible, composable virtual alarm management for Home Assistant*
+
+</div>
+
+---
+
+## About
 
 Composable Alarm Clock creates virtual alarm-clock devices in Home Assistant.
 
@@ -117,7 +129,7 @@ Service inputs are validated before alarms are stored or triggered:
 - Target services must use `domain.service` format.
 - Update, delete, and trigger actions return a translated validation error when the alarm does not exist.
 
-On setup, the integration reconciles stored alarm definitions with Home Assistant's entity and device registries. Stale per-alarm entities or devices left behind by earlier versions or interrupted deletes are pruned automatically when the integration loads.
+On setup, the integration reconciles stored alarm definitions with Home Assistant's entity and device registries. Stale per-alarm entities or devices left behind by earlier versions or interruptions are cleaned up automatically.
 
 ## Bronze/Silver/Gold/Platinum notes
 
