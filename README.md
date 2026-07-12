@@ -12,7 +12,12 @@
 
 ## About
 
-Composable Alarm Clock creates virtual alarm-clock devices in Home Assistant.
+Composable Alarm Clock creates **virtual alarm-clock devices** in Home Assistant that users explicitly define. Rather than auto-discovering devices, this integration provides a centralized platform where you:
+
+- Create and manage multiple alarms in one place
+- Define alarm times, enabled states, and target actions
+- Build automations and helpers around a consistent alarm entity structure
+- Dynamically determine when to set the next alarm based on a unified alarm registry
 
 Each virtual alarm has:
 
@@ -20,7 +25,17 @@ Each virtual alarm has:
 - An enabled toggle
 - Optional target entities and target services to activate when due
 
-This is designed for "alarm panels" in Home Assistant dashboards (for example, kids rooms), while allowing parents to monitor whether alarms are set and enabled.
+This is ideal for "alarm panels" in Home Assistant dashboards (for example, kids' rooms), while allowing parents to monitor whether alarms are set and enabled.
+
+**Key benefit:** A unified alarm registry makes it simple to build helpers, automations, and logic around your alarms—all from a single, easy-to-query set of entities.
+
+## Use Cases
+
+- **Alarm management panels** for family members or guests
+- **Automation helpers** that reference alarm state to determine next wake-up time
+- **Dynamic scheduling** based on multiple alarm entities
+- **Multi-target activation** (lights, speakers, notifications) when alarms trigger
+- **Service-based alarm control** from scripts, automations, and dashboards
 
 ## What this repository includes
 
@@ -41,6 +56,7 @@ This is designed for "alarm panels" in Home Assistant dashboards (for example, k
 - Diagnostics output with stored alarm definitions
 - Repairs issue + fix flow when enabled alarms have no targets
 - Tests using `pytest-homeassistant-custom-component`
+- Dynamic cleanup of remnant entities and devices
 
 ## Quick start
 
@@ -129,7 +145,7 @@ Service inputs are validated before alarms are stored or triggered:
 - Target services must use `domain.service` format.
 - Update, delete, and trigger actions return a translated validation error when the alarm does not exist.
 
-On setup, the integration reconciles stored alarm definitions with Home Assistant's entity and device registries. Stale per-alarm entities or devices left behind by earlier versions or interruptions are cleaned up automatically.
+On setup, the integration reconciles stored alarm definitions with Home Assistant's entity and device registries. Stale per-alarm entities or devices left behind by earlier versions or interruptions are automatically cleaned up.
 
 ## Bronze/Silver/Gold/Platinum notes
 
@@ -154,7 +170,7 @@ To use local branding in Home Assistant before upstream publication, copy the re
 
 ## Known limitations in initial scaffold
 
-- Discovery protocols are not yet implemented.
+- Discovery protocols are not implemented (devices are user-created).
 - Brand images are included locally and can be used via the local `brands` folder, but are not yet published to `home-assistant/brands`.
 
 ## License
